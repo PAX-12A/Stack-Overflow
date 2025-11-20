@@ -82,7 +82,7 @@ def render_ascii_art(screen, label, font_size=16, x=10, y=20, color=WHITE):
         lines = f.readlines()
 
     # 渲染
-    font = pygame.font.Font("Saitamaar-Regular.ttf", font_size)
+    font = get_font("AA", font_size)
     for i, line in enumerate(lines):
         text_surface = font.render(line.rstrip("\n"), False, color)  # False = 关闭抗锯齿
         screen.blit(text_surface, (x, y + i * font_size))

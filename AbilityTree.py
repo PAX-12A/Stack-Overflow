@@ -59,10 +59,9 @@ class LangPage(Page):
             pygame.draw.line(screen, line_color, start_node.rect.center, end_node.rect.center, line_width)
 
         # 再绘制节点
-        font = get_font("en", "Cogmind", 12)
+        font = get_font("Cogmind", 12)
         for node in self.tree.nodes["lang"].values():
             node.draw(screen, font)
-
                 # 绘制选中节点的详细信息
         if self.tree.selected_node:
             self.tree.draw_node_info(screen)
@@ -95,7 +94,29 @@ class SkillPage(Page):
         self.tree.update(player)
 
     def draw(self, screen, font, player):
-        self.tree.draw_skill_view(screen, player)
+        self.draw_skill_view(screen, player)
+
+    def draw_skill_view(self,screen,player):
+        font = get_font("Cogmind", 16)
+        title = font.render("Skills", True, WHITE)
+        screen.blit(title, (50, 40))
+
+        # 左列：未学习
+        x_left, y_left = 50, 80
+        # 右列：已学习
+        x_right, y_right = 300, 80
+        for skill in player["available_skills"]:
+            text_surface = font.render(skill, True, WHITE)
+            text_rect = text_surface.get_rect(topleft=(x_left, y_left))
+            screen.blit(text_surface, text_rect)
+            setattr(self.tree, f"skill_rect_{skill}", text_rect)  # 保存点击区域
+            y_left += 30
+
+        for skill in player["learned_skills"]:
+            text_surface = font.render(f"{skill} (learned)", True, GREEN)
+            text_rect = text_surface.get_rect(topleft=(x_right, y_right))
+            screen.blit(text_surface, text_rect)
+            y_right += 30
 
 
 # 科技节点类
@@ -174,6 +195,7 @@ class BaseNode:
     def can_unlock(self, researched_nodes):
         if self.is_researched:
             return False
+        #print(self.name, self.prerequisites, researched_nodes)
         for prereq in self.prerequisites:
             if prereq not in researched_nodes:
                 return False
@@ -262,19 +284,13 @@ class TechTree:
         self.setup_Ability_tree("tech", tech_levels)
         self.setup_Ability_tree("lang", lang_levels,["C","Utility"])
         self.get_player_data = get_player_data  # 用于获取玩家数据的回调函数
+        self.current_page = "tech"  # 当前激活的页面
 
         self.tabs = Toolbar.create_tabs(self,
             names=[ "Tech","Lang","Algo","Skill"],
             start_pos=(SCREEN_WIDTH -250 , 50),
             direction="col"
         )
-
-    def get_active_tab_name(self):
-        for tab in self.tabs:
-            if tab.is_active:
-                print(tab.name.lower())
-                return tab.name.lower()  # tech / skill / lang / algo
-        return "tech"
         
     def setup_Ability_tree(self, tree_type, ability_levels,initial_unlock=None):
         # 确保容器存在
@@ -310,15 +326,15 @@ class TechTree:
             if hasattr(node, "level") and node.level == 1:
                 node.is_unlocked = True
 
-            # 初始解锁
+        # 初始解锁
         if initial_unlock:
             for name in initial_unlock:
                 if name in self.nodes[tree_type]:
                     self.nodes[tree_type][name].is_unlocked = True
                 
     def draw_tech_tree(self, screen):
-        level_font = get_font("en", "Time", 20)
-        font = get_font("ch", "Pixel", 16)
+        level_font = get_font("Time", 20)
+        font = get_font("Pixel", 16)
         # 绘制等级分隔线和标题
         for level in range(1, 7):
             x = 80 + (level - 1) * 130
@@ -414,8 +430,8 @@ class TechTree:
 
         
         # 节点名称
-        f1=get_font("ch", "Pixel", 20)
-        f2=get_font("en", "Cogmind", 16)
+        f1=get_font("Pixel", 20)
+        f2=get_font("Cogmind", 16)
         name_surface = f1.render(node.name, True, WHITE)#要用中文字体
         status_surface = f2.render(status, True, WHITE)#用英文字体，紧跟在name后面
         name_width = name_surface.get_width()
@@ -468,31 +484,9 @@ class TechTree:
             weapon_img= load_image(f"arts/sprite/weapons/{node.weapon}.png",(120,120))
             screen.blit(weapon_img, (780,450))
             
-
-    def draw_skill_view(self,screen,player):
-        font = get_font("en", "Cogmind", 16)
-        title = font.render("Skills", True, WHITE)
-        screen.blit(title, (50, 40))
-
-        # 左列：未学习
-        x_left, y_left = 50, 80
-        # 右列：已学习
-        x_right, y_right = 300, 80
-        for skill in player["available_skills"]:
-            text_surface = font.render(skill, True, WHITE)
-            text_rect = text_surface.get_rect(topleft=(x_left, y_left))
-            screen.blit(text_surface, text_rect)
-            setattr(self, f"skill_rect_{skill}", text_rect)  # 保存点击区域
-            y_left += 30
-
-        for skill in player["learned_skills"]:
-            text_surface = font.render(f"{skill} (learned)", True, GREEN)
-            text_rect = text_surface.get_rect(topleft=(x_right, y_right))
-            screen.blit(text_surface, text_rect)
-            y_right += 30
-
                 
-    def handle_event(self, player, event,tree_type):
+    def handle_event(self, player, event, tree_type):
+        self.current_page= tree_type
 
         # 1. ESC 返回上一级或关闭标签
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -552,10 +546,9 @@ class TechTree:
                 self.pressed_node = None
                 
     def update_unlocked_nodes(self):
-        tree_type = self.get_active_tab_name()
         """更新可解锁的节点状态"""
-        for node in self.nodes[tree_type].values():
-            if not node.is_unlocked and node.can_unlock(self.researched):
+        for node in self.nodes[self.current_page].values():
+            if node.can_unlock(self.researched):
                 node.is_unlocked = True
 
 

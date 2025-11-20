@@ -35,7 +35,8 @@ class MainMenu:
 
     def draw(self, screen):
         screen.fill(BLACK)
-        menu_font = get_font("en","Patriot",50)
+
+        menu_font = get_font("Patriot",50)
         title_surface = menu_font.render("Simplicity is all YOU Need", True, WHITE)
         title_rect = title_surface.get_rect(center=(SCREEN_WIDTH//2, 100))
         screen.blit(title_surface, title_rect)
@@ -102,8 +103,8 @@ def main():
     pygame.display.set_caption("Stupid Game")
     clock = pygame.time.Clock()
 
-    en_Cogmind_20 = get_font("en", "Cogmind", 20)
-    ch_Pixel_20 = get_font("ch", "Pixel", 20)
+    en_Cogmind_20 = get_font("Cogmind", 20)
+    ch_Pixel_20 = get_font("Pixel", 20)
 
     # 创建战斗场景
     fight_scene = FightScene()

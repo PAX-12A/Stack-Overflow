@@ -98,6 +98,7 @@ class Player:
     # 人物头像
     sp_image = load_image('assets/sp.png',(190, 190))
 
+
     def __init__(self, base_stats=None):
         if base_stats is None:
             base_stats = {k: 20 for k in ['S', 'T', 'U', 'P', 'I', 'D']}

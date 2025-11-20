@@ -204,6 +204,9 @@ class Actor:
         # else:
         #     print("不能移动到该位置")
         return False
+    
+    def get_sprite(self):
+        raise NotImplementedError
 
 class Player(Actor):
     def __init__(self, position=2):
@@ -277,6 +280,9 @@ class Player(Actor):
         else:
             print(f"[Skill] {skill_name} 未在技能库中定义。")
         return True
+    
+    def get_sprite(self):
+        return load_image("arts/sprite/Character/hero.png")
 
 class Enemy(Actor):
     def __init__(self,monster_id,position=5):
@@ -307,6 +313,13 @@ class Enemy(Actor):
         super().die(scene)  # 调用父类的 die() 处理基本死亡逻辑
         print(f"Enemy dropped loot!")  # 显示敌人掉落物品提示
         # 这里可以增加掉落物品的逻辑
+
+    def get_sprite(self):
+        try:
+            return load_image(f"arts/sprite/Character/{self.name}.png",(48,48)) 
+        except FileNotFoundError:
+            print("using default enemy img")
+            return load_image("arts/sprite/Character/enemy.png")
 
     def execute_intent(self, scene):
         """逐回合执行当前意图"""

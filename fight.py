@@ -24,9 +24,9 @@ class FightScene:
         self.messages = []  # 队列，最新的消息插入末尾
         
         # 字体
-        self.font = get_font("en","Cogmind",20)
-        self.small_font = get_font("en","DOS",20)
-        self.large_font = get_font("ch","Lolita",16)
+        self.font = get_font("Cogmind",20)
+        self.small_font = get_font("DOS",20)
+        self.large_font = get_font("Lolita",16)
         
         self.player.on_move_check = self.handle_move#回调函数绑定
         for enemy in self.enemies:
@@ -248,7 +248,7 @@ class FightScene:
                     self.player.position=new_pos
 
             pygame.display.flip()
-            pygame.time.wait(500) # 暂停0.5秒
+            # pygame.time.wait(500) # 暂停0.5秒
             
             # print(666)
 
@@ -460,7 +460,7 @@ class FightScene:
             screen.blit(pos_text, text_rect)
     
     def draw_entities(self,screen):
-        self.draw_character_with_arrow(screen, self.player,"Hero")
+        self.draw_pawns(screen, self.player)
         
         # 绘制敌人
         for enemy in self.enemies:
@@ -475,23 +475,13 @@ class FightScene:
             pygame.draw.rect(screen,SHADOW, (health_x, health_y, health_width, 6))
             pygame.draw.rect(screen, WHITE, (health_x, health_y, int(health_width * health_ratio), 6))
 
-            self.draw_character_with_arrow(screen, enemy ,"Enemy")
+            self.draw_pawns(screen, enemy)
 
-    def draw_character_with_arrow(self, screen , pawn, type):
-        arrow_font = get_font("ch","Lolita")
-        
-        # 加载图片
-        if type =="Hero":
-            character = load_image('arts/sprite/Character/hero.png')
-        elif type == "Enemy":
-            try:
-                # 尝试加载与敌人名字对应的图片
-                character = load_image(f"arts/sprite/Character/{pawn.name}.png",(48,48))
-            except FileNotFoundError:
-                # 如果文件不存在，加载默认图
-                character = load_image("arts/sprite/Character/enemy.png")
+    def draw_pawns(self, screen , pawn):
+        arrow_font = get_font("Lolita")
+        character = pawn.get_sprite()
 
-        if hasattr(pawn,"moving") and pawn.moving:
+        if isinstance(pawn, Enemy) and pawn.moving:
             arrow_color = GREEN
         else:
             arrow_color = GRAY
@@ -518,12 +508,18 @@ class FightScene:
         arrow_y = center_y + 15  
         screen.blit(arrow_surface, (arrow_x, arrow_y))
 
-        if type =="Hero":
-            line= "#" * pawn.swap_cooldown
-            cooldown_surface = arrow_font.render(line, True, GRAY)
-            screen.blit(cooldown_surface, (arrow_x, arrow_y + 10))
-        if type =="Enemy":
-            self.draw_intents(screen,pawn,pos=(center_x, center_y))
+        if isinstance(pawn, Player):
+            self.draw_hero_overlay(screen, pawn,(draw_x, draw_y))
+        elif isinstance(pawn, Enemy):
+            self.draw_enemy_overlay(screen, pawn,(draw_x, draw_y))
+
+    def draw_hero_overlay(self, screen, pawn: Player,pos):
+        line = "#" * pawn.swap_cooldown
+        cooldown_surface = self.font.render(line, True, GRAY)
+        screen.blit(cooldown_surface, pos)
+
+    def draw_enemy_overlay(self, screen, pawn: Enemy,pos):
+        self.draw_intents(screen, pawn, pos)
 
     def draw_intents(self, screen, pawn, pos):
         intent_x = pos[0] 
@@ -540,7 +536,7 @@ class FightScene:
             # 绘制图标
             rect = weapon_image.get_rect(topleft=(intent_x - 24, intent_y))
             render_1bit_sprite(screen, weapon_image, rect.topleft, weapon_color)
-            font = get_font("en", "DOS", 16)
+            font = get_font("DOS", 16)
             screen.blit(font.render(f"{weapon.damage}", True, WHITE), (intent_x - 24, intent_y + 30))
 
             # 如果鼠标悬停在这个图标上
@@ -702,7 +698,7 @@ class FightScene:
         end_rect = end_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2+200))
         screen.blit(end_text, end_rect)
         
-        restart_text = self.font.render("Press q to return Menu,r to restart", True, WHITE)
+        restart_text = self.font.render("Q to return Menu,R to restart", True, WHITE)
         restart_rect = restart_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 220))
         screen.blit(restart_text, restart_rect)    
     

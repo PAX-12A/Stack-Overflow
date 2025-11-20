@@ -26,7 +26,7 @@ class FightScene:
         # 字体
         self.font = get_font("Cogmind",20)
         self.small_font = get_font("DOS",20)
-        self.large_font = get_font("Lolita",16)
+        self.large_font = get_font("Cogmind",16)
         
         self.player.on_move_check = self.handle_move#回调函数绑定
         for enemy in self.enemies:
@@ -478,7 +478,7 @@ class FightScene:
             self.draw_pawns(screen, enemy)
 
     def draw_pawns(self, screen , pawn):
-        arrow_font = get_font("Lolita")
+        arrow_font = get_font("DOS", 24)
         character = pawn.get_sprite()
 
         if isinstance(pawn, Enemy) and pawn.moving:
@@ -509,12 +509,12 @@ class FightScene:
         screen.blit(arrow_surface, (arrow_x, arrow_y))
 
         if isinstance(pawn, Player):
-            self.draw_hero_overlay(screen, pawn,(draw_x, draw_y))
+            self.draw_hero_overlay(screen, pawn,(draw_x, draw_y + 50))
         elif isinstance(pawn, Enemy):
-            self.draw_enemy_overlay(screen, pawn,(draw_x, draw_y))
+            self.draw_enemy_overlay(screen, pawn,(draw_x+20, draw_y))
 
     def draw_hero_overlay(self, screen, pawn: Player,pos):
-        line = "#" * pawn.swap_cooldown
+        line = "*" * pawn.swap_cooldown
         cooldown_surface = self.font.render(line, True, GRAY)
         screen.blit(cooldown_surface, pos)
 

@@ -1,7 +1,6 @@
 import pygame
 import sys
 from fight import *
-from help import HelpSystem
 from colors import *
 from pages import *
 
@@ -11,7 +10,7 @@ pygame.init()
 pygame.mixer.init()  # 初始化音频系统
 # 载入背景音乐
 try:
-    pygame.mixer.music.load("assets/music/illusion.mp3")  # 替换为你的音乐文件路径
+    pygame.mixer.music.load("assets/music/illusion.mp3")  # 音乐文件路径
     pygame.mixer.music.set_volume(0)  # 设置音量（0.0 到 1.0）
     pygame.mixer.music.play(-1)  # -1 表示循环播放
 except pygame.error as e:
@@ -114,8 +113,6 @@ def main():
 
     skillLib = SkillLibrary
     skillLib.init_skills()
-
-    help_system = HelpSystem()
     menu = MainMenu(en_Cogmind_20)
     game_state = GAME_STATE_MENU  # ✅ 初始状态是菜单
     running = True
@@ -166,7 +163,6 @@ def main():
             if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
                 fight_scene.draw(screen)
             toolbar.draw(screen, ch_Pixel_20,fight_scene.get_player_data())
-            help_system.draw(screen, ch_Pixel_20)
                 
 
         pygame.display.flip()

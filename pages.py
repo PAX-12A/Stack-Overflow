@@ -131,7 +131,7 @@ class CharacterPage(Page):
         self.get_player_data = get_player_data
 
     def draw(self, screen, font, player=None):
-        character = load_image('assets/programmer.jpg',(736/4,736/4))
+        character = load_image('arts/programmer.jpg',(736/4,736/4))
         screen.blit(character, (100, 100))
         title_font = get_font("Cogmind",30)
         content_font = get_font("DOS",20)

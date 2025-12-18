@@ -47,6 +47,7 @@ def get_font(name: str = None, size: int = None):
             "Time": "assets/fonts/Time.ttf",
             "Patriot": "assets/fonts/Patriot.ttf",
             "AA":"assets/fonts/Saitamaar-Regular.ttf",
+            # "AA2":"assets/fonts/Saitamaar.woff2",
         }.get(name)
 
         if not font_path:

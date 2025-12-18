@@ -481,7 +481,7 @@ class FightScene:
         arrow_font = get_font("DOS", 24)
         character = pawn.get_sprite()
 
-        if isinstance(pawn, Enemy) and pawn.moving:
+        if isinstance(pawn, Enemy) and pawn.state.__class__.__name__ == "MoveState":
             arrow_color = GREEN
         else:
             arrow_color = GRAY
@@ -489,10 +489,10 @@ class FightScene:
         # 根据方向翻转
         if pawn.direction == 1:  # 朝右
             draw_img = character
-            arrow_surface = arrow_font.render("→", True, arrow_color)
+            arrow_surface = arrow_font.render("->", True, arrow_color)
         else:  # 朝左
             draw_img = pygame.transform.flip(character, True, False)
-            arrow_surface = arrow_font.render("←", True, arrow_color)
+            arrow_surface = arrow_font.render("<-", True, arrow_color)
 
         # 获取格子矩形 & 中心
         rect = self.get_cell_rect(pawn.position)
@@ -527,7 +527,7 @@ class FightScene:
 
         mouse_pos = pygame.mouse.get_pos()
         hovered_weapon = None  # 当前悬停的武器
-        weapon_color = GREEN if pawn.ready_to_attack else RED
+        weapon_color = pawn.state.get_weapon_color(pawn)
 
         for index in pawn.action_sequence:
             weapon = pawn.weapons[index]
@@ -545,22 +545,30 @@ class FightScene:
 
             intent_y -= 48  # 间距调整
 
-        # 加号（正在添加新动作）
-        if pawn.adding:
-            plus_surface = self.font.render("+", True, RED)
-            screen.blit(plus_surface, (intent_x, intent_y))
+        # # 加号（正在添加新动作）666
+        # if pawn.adding:
+        #     plus_surface = self.font.render("+", True, RED)
+        #     screen.blit(plus_surface, (intent_x, intent_y))
+        #     intent_y -= 48
+
+        # # 状态标记
+        # line = ""
+        # if pawn.waiting:
+        #     line += "!"
+        # if pawn.ready_to_attack:
+        #     line += "!!!"
+
+        # if line:
+        #     text_surface = self.small_font.render(line, True, weapon_color)
+        #     screen.blit(text_surface, (intent_x-10, intent_y + 20))
+
+        for symbol in pawn.state.get_intent_symbols(pawn):
+            text_surface = self.small_font.render(
+                symbol, True, weapon_color   # 👈 颜色仍由 UI 控制
+            )
+            screen.blit(text_surface, (intent_x, intent_y))
             intent_y -= 48
 
-        # 状态标记
-        line = ""
-        if pawn.waiting:
-            line += "!"
-        if pawn.ready_to_attack:
-            line += "!!!"
-
-        if line:
-            text_surface = self.small_font.render(line, True, weapon_color)
-            screen.blit(text_surface, (intent_x-10, intent_y + 20))
 
         # ==============================
         # 悬停时绘制武器详细信息 Tooltip

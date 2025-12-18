@@ -302,10 +302,12 @@ class Enemy(Actor):
         self.intent_index = 0           # 当前执行到第几个意图
         self.intent_progress = 0        # 当前意图中的武器进度
 
-        self.waiting = False  
-        self.ready_to_attack = False
-        self.adding = False
-        self.moving = False
+        # self.waiting = False  
+        # self.ready_to_attack = False
+        # self.adding = False
+        # self.moving = False
+
+        self.state = MoveState()  # 初始状态
         
 
     def die(self,scene):
@@ -356,38 +358,50 @@ class Enemy(Actor):
         return None
     
 
+# 回合 N：
+#     执行 A（EXECUTE）
+#     ❌ 不显示 B 的 intent
+
+# 回合 N+1：
+#     显示 B 的 intent（INTENT）
+#     ❌ 不执行 B
+
+# 回合 N+2：
+#     执行 B（EXECUTE）
 
     def ai_take_turn(self, scene):
-        player = scene.player
 
-        if self.waiting:  
-            # --- 检查能否命中玩家 ---
-            if self.can_hit_player(player, scene):
-                # 可以命中 → 保持等待状态，下一回合会攻击
-                scene.add_message(f"Enemy is ready to attack")
-                # 等待结束后下回合执行攻击
-                self.waiting = False  
-                self.ready_to_attack=True
-            else:
-                # --- 不能命中，先调整方向 ---
-                if not self.is_facing_player(player):
-                    self.turn_around()
-                    # scene.add_message(f"Enemy turn around")
-                elif self.moving:#再试图移动（如果已经在之前展示了移动的意图）
-                    self.move(self.direction)
-                    self.moving = False
-                else: #展示移动的意图
-                    self.moving = True 
-            return
-        elif self.ready_to_attack :# 之前一回合展示即将攻击            
-            scene.execute_actions(self)# 施放攻击
-            self.ready_to_attack=False        
-        else:
-            if self.adding:# 展示过即将添加武器的意图                
-                # print(self.intents)
-                self.execute_intent(scene)# 执行意图  
-            else:
-                self.adding = True
+        self.state = self.state.update(self, scene)
+        # player = scene.player
+
+        # if self.waiting:  
+        #     # --- 检查能否命中玩家 ---
+        #     if self.can_hit_player(player, scene):
+        #         # 可以命中 → 保持等待状态，下一回合会攻击
+        #         scene.add_message(f"Enemy is ready to attack")
+        #         # 等待结束后下回合执行攻击
+        #         self.waiting = False  
+        #         self.ready_to_attack=True
+        #     else:
+        #         # --- 不能命中，先调整方向 ---
+        #         if not self.is_facing_player(player):
+        #             self.turn_around()
+        #             # scene.add_message(f"Enemy turn around")
+        #         elif self.moving:#再试图移动（如果已经在之前展示了移动的意图）
+        #             self.move(self.direction)
+        #             self.moving = False
+        #         else: #展示移动的意图
+        #             self.moving = True 
+        #     return
+        # elif self.ready_to_attack :# 之前一回合展示即将攻击            
+        #     scene.execute_actions(self)# 施放攻击
+        #     self.ready_to_attack=False        
+        # else:
+        #     if self.adding:# 展示过即将添加武器的意图                
+        #         # print(self.intents)
+        #         self.execute_intent(scene)# 执行意图  
+        #     else:
+        #         self.adding = True
     
     def is_facing_player(self, player):
         return (self.direction == 1 and player.position > self.position) or \
@@ -410,6 +424,82 @@ class Enemy(Actor):
                             return distance <= 1
 
         return False
+
+class EnemyState:
+    def update(self, enemy, scene):
+        raise NotImplementedError
+    
+    def get_weapon_color(self, enemy):
+        return RED
+    
+    def get_intent_symbols(self, enemy) -> list[str]:
+        return []
+
+from enum import Enum
+
+class Phase(Enum):
+    INTENT = 0
+    EXECUTE = 1
+
+class MoveState(EnemyState):
+    def __init__(self):
+        self.phase = Phase.INTENT
+
+    def update(self, enemy, scene):
+        if self.phase == Phase.INTENT:
+            scene.add_message(f"{enemy.name} intends to move")
+            self.phase = Phase.EXECUTE
+            return self  # 本回合结束
+
+        # === EXECUTE ===
+        if not enemy.is_facing_player(scene.player):
+            enemy.turn_around()
+        else:
+            enemy.move(enemy.direction)
+
+        return AddWeaponState()
+
+class AddWeaponState(EnemyState):
+    def __init__(self):
+        self.phase = Phase.INTENT
+
+    def update(self, enemy, scene):
+
+        finished = enemy.execute_intent(scene)
+        if finished:
+            return AttackState()
+        else:
+            if self.phase == Phase.INTENT:
+                scene.add_message(f"{enemy.name} is preparing weapons")
+                self.phase = Phase.EXECUTE
+                return self
+            return AddWeaponState()
+        
+    def get_intent_symbols(self, enemy):
+        if self.phase == Phase.INTENT:
+            return ["+"]
+        return []
+
+class AttackState(EnemyState):
+    def __init__(self):
+        self.phase = Phase.INTENT
+
+    def update(self, enemy, scene):
+        if self.phase == Phase.INTENT:
+            scene.add_message(f"{enemy.name} is about to attack")
+            self.phase = Phase.EXECUTE
+            return self
+
+        scene.execute_actions(enemy)
+        return MoveState()
+    
+    def get_intent_symbols(self, enemy):
+        return ["!"]
+    def get_weapon_color(self, enemy):
+        if self.phase == Phase.EXECUTE:
+            return GREEN   # 即将攻击
+        return RED
+
     
 class SkillEffect:
     """技能效果对象"""

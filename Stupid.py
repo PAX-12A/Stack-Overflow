@@ -127,8 +127,6 @@ def main():
                 if choice == "Start Game":
                     menu.intro(screen)
                     game_state = GAME_STATE_PLAYING
-                elif choice == "Help":
-                    help_system.is_visible = True
                 elif choice == "Quit":
                     running = False
             elif game_state == GAME_STATE_PLAYING:

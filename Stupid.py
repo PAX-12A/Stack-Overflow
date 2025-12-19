@@ -95,79 +95,187 @@ class MainMenu:
                         pygame.display.flip()
                     else:
                         waiting = False
+class GameApp:
+    def __init__(self):
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.display.set_caption("Stupid Game")
+        self.clock = pygame.time.Clock()
+
+        self.font_en = get_font("Cogmind", 20)
+        self.font_ch = get_font("Pixel", 20)
+
+        self.menu = MainMenu(self.font_en)
+        self.scene = FightScene()
+        self.toolbar = Toolbar(self.scene.get_player_data)
+
+        SkillLibrary.init_skills()
+        self.state = MenuState(self)
+
+        self.running = True
+
+class GameState:
+    def handle_event(self, event): pass
+    def update(self): pass
+    def draw(self): pass
+
+class MenuState(GameState):
+    def __init__(self, app):
+        self.app = app
+
+    def handle_event(self, event):
+        choice = self.app.menu.handle_event(event)
+        if choice == "Start Game":
+            self.app.menu.intro(self.app.screen)
+            self.app.state = PlayingState(self.app)
+        elif choice == "Quit":
+            self.app.running = False
+
+    def draw(self):
+        self.app.menu.draw(self.app.screen)
+
+
+class PlayingState(GameState):
+    def __init__(self, app):
+        self.app = app
+
+    def handle_event(self, event):
+        scene = self.app.scene
+        toolbar = self.app.toolbar
+
+        toolbar.handle_event(event, scene.player)
+        scene.handle_event(event)
+        if event.type == pygame.USEREVENT + 1:
+            if scene.game_state == "enemy_turn":
+                scene.execute_enemy_turn(scene)
+                pygame.time.set_timer(pygame.USEREVENT + 1, 0)
+
+    def update(self):
+        self.app.toolbar.update(self.app.scene.player)
+
+        if self.app.scene.game_state == "game_over":
+            self.app.state = GameOverState(self.app)
+
+    def draw(self):
+        screen = self.app.screen
+        screen.fill(BLACK)
+
+        self.app.scene.draw(screen)
+
+        self.app.toolbar.draw(
+            screen,
+            self.app.font_ch,
+            self.app.scene.get_player_data()
+        )
+
+class GameOverState(GameState):
+    def __init__(self, app):
+        self.app = app
+
+    def handle_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_q:
+                self.app.scene = FightScene()
+                self.app.state = MenuState(self.app)
+            elif event.key == pygame.K_r:
+                self.app.scene = FightScene()
+                self.app.state = PlayingState(self.app)
+
+    def draw(self):
+        self.app.scene.draw(self.app.screen)
 
 def main():
-    # 设置屏幕
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("Stupid Game")
-    clock = pygame.time.Clock()
+    pygame.init()
+    app = GameApp()
 
-    en_Cogmind_20 = get_font("Cogmind", 20)
-    ch_Pixel_20 = get_font("Pixel", 20)
-
-    # 创建战斗场景
-    fight_scene = FightScene()
-    
-    # 创建工具栏
-    toolbar = Toolbar(fight_scene.get_player_data)
-
-    skillLib = SkillLibrary
-    skillLib.init_skills()
-    menu = MainMenu(en_Cogmind_20)
-    game_state = GAME_STATE_MENU  # ✅ 初始状态是菜单
-    running = True
-    while running:
-        # 1. 事件处理
+    while app.running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                app.running = False
+            else:
+                app.state.handle_event(event)
 
-            if game_state == GAME_STATE_MENU:
-                choice = menu.handle_event(event)
-                if choice == "Start Game":
-                    menu.intro(screen)
-                    game_state = GAME_STATE_PLAYING
-                elif choice == "Quit":
-                    running = False
-            elif game_state == GAME_STATE_PLAYING:
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    pass
-                elif event.type == pygame.USEREVENT + 1:
-                    if fight_scene.game_state == "enemy_turn":
-                        fight_scene.execute_enemy_turn(fight_scene)
-                        pygame.time.set_timer(pygame.USEREVENT + 1, 0)
-            # 工具栏事件
-            toolbar.handle_event(event,fight_scene.player)
+        app.state.update()
+        app.state.draw()
+        #print(app.state.__class__.__name__)
 
-            # 战斗事件（只有主界面才生效）
-            if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
-                fight_scene.handle_event(event)
-            # GameOver 
-            if fight_scene.game_state == "game_over":
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_q:
-                        game_state = "menu"   # 回主菜单
-                        fight_scene = FightScene() 
-                    elif event.key == pygame.K_r:
-                        fight_scene = FightScene()  # 重新开始 
+        pygame.display.flip()
+        app.clock.tick(60)
+
+    pygame.quit()
+    sys.exit()
+
+# def main():
+#     # 设置屏幕
+#     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+#     pygame.display.set_caption("Stupid Game")
+#     clock = pygame.time.Clock()
+
+#     en_Cogmind_20 = get_font("Cogmind", 20)
+#     ch_Pixel_20 = get_font("Pixel", 20)
+
+#     # 创建战斗场景
+#     fight_scene = FightScene()
+    
+#     # 创建工具栏
+#     toolbar = Toolbar(fight_scene.get_player_data)
+
+#     skillLib = SkillLibrary
+#     skillLib.init_skills()
+#     menu = MainMenu(en_Cogmind_20)
+#     game_state = GAME_STATE_MENU  # ✅ 初始状态是菜单
+#     running = True
+#     while running:
+#         # 1. 事件处理
+#         for event in pygame.event.get():
+#             if event.type == pygame.QUIT:
+#                 running = False
+
+#             if game_state == GAME_STATE_MENU:
+#                 choice = menu.handle_event(event)
+#                 if choice == "Start Game":
+#                     menu.intro(screen)
+#                     game_state = GAME_STATE_PLAYING
+#                 elif choice == "Quit":
+#                     running = False
+#             elif game_state == GAME_STATE_PLAYING:
+#                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+#                     pass
+#                 elif event.type == pygame.USEREVENT + 1:
+#                     if fight_scene.game_state == "enemy_turn":
+#                         fight_scene.execute_enemy_turn(fight_scene)
+#                         pygame.time.set_timer(pygame.USEREVENT + 1, 0)
+#             # 工具栏事件
+#             toolbar.handle_event(event,fight_scene.player)
+
+#             # 战斗事件（只有主界面才生效）
+#             if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
+#                 fight_scene.handle_event(event)
+#             # GameOver 
+#             if fight_scene.game_state == "game_over":
+#                 if event.type == pygame.KEYDOWN:
+#                     if event.key == pygame.K_q:
+#                         game_state = "menu"   # 回主菜单
+#                         fight_scene = FightScene() 
+#                     elif event.key == pygame.K_r:
+#                         fight_scene = FightScene()  # 重新开始 
 
             
 
-        if game_state == GAME_STATE_MENU:
-            menu.draw(screen)
-        elif game_state == GAME_STATE_PLAYING:
-            toolbar.update(fight_scene.player)  # 这里处理科技树等进度
-            screen.fill(BLACK)
-            if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
-                fight_scene.draw(screen)
-            toolbar.draw(screen, ch_Pixel_20,fight_scene.get_player_data())
+#         if game_state == GAME_STATE_MENU:
+#             menu.draw(screen)
+#         elif game_state == GAME_STATE_PLAYING:
+#             toolbar.update(fight_scene.player)  # 这里处理科技树等进度
+#             screen.fill(BLACK)
+#             if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
+#                 fight_scene.draw(screen)
+#             toolbar.draw(screen, ch_Pixel_20,fight_scene.get_player_data())
                 
 
-        pygame.display.flip()
-        clock.tick(60)
+#         pygame.display.flip()
+#         clock.tick(60)
     
-    pygame.quit()
-    sys.exit()
+#     pygame.quit()
+#     sys.exit()
 
 if __name__ == "__main__":
     main()

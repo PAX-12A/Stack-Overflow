@@ -592,7 +592,7 @@ class FightScene:
         # 文本
         for i, line in enumerate(lines):
             if i==0:
-                font = get_font("en", "Patriot", 24)
+                font = get_font("Patriot", 24)
             else:
                 font = self.small_font
             text_surface = font.render(line, True, WHITE)

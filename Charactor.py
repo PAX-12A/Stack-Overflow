@@ -205,6 +205,9 @@ class Actor:
         #     print("不能移动到该位置")
         return False
     
+    def move_forward(self):
+        return self.move(self.direction)
+    
     def get_sprite(self):
         raise NotImplementedError
 
@@ -289,7 +292,6 @@ class MonsterBlueprint:
         data= MONSTER_LIBRARY[id]
         self.name = data["name"]
         self.health = data["health"]
-        self.sequence_limit = data["sequence_limit"]
         self.weapon_ids = data["weapons"]
         self.intents = data["intents"]
         self.type = data["type"]
@@ -302,7 +304,7 @@ class Enemy(Actor):
         # monster_data = MONSTER_LIBRARY[monster_id]
         super().__init__(position, 
                          health=blueprint.health, 
-                         sequence_limit=blueprint.sequence_limit)
+                         sequence_limit=3)
 
         self.name = blueprint.name
         self.type = blueprint.type
@@ -319,8 +321,11 @@ class Enemy(Actor):
         # self.ready_to_attack = False
         # self.adding = False
         # self.moving = False
-
-        self.state = MoveState()  # 初始状态
+        if self.type == "melee":
+            self.strategy = MeleeMoveStrategy()
+        else:
+            self.strategy = RangedMoveStrategy()
+        self.state = AddWeaponState()  # 初始状态
         
 
     def die(self,scene):
@@ -369,6 +374,7 @@ class Enemy(Actor):
             if w.name == weapon_name:
                 return i
         return None
+    
     
 
 # 回合 N：
@@ -425,7 +431,6 @@ class Enemy(Actor):
         if player:
             distance = abs(self.position - player.position)
             if self.is_facing_player(player):
-                # print(self.type)
                 if self.type == "melee":
                     return distance <= 1
                 elif self.type == "range":
@@ -454,39 +459,91 @@ class Phase(Enum):
     INTENT = 0
     EXECUTE = 1
 
-class MoveState(EnemyState):
-    def __init__(self):
-        self.phase = Phase.INTENT
+class MoveStrategy:
+    def execute(self, enemy, scene):
+        raise NotImplementedError
+    
+    def needs_move(self, enemy, scene):
+        player = scene.player
+        optimal_range = 1
+        distance = abs(enemy.position - player.position)
+        return distance > optimal_range or not enemy.is_facing_player(scene.player)
 
+class MeleeMoveStrategy(MoveStrategy):
+    def update(self, enemy, scene):
+        player = scene.player
+        optimal_range = 1
+        distance = abs(enemy.position - player.position)
+
+        if not enemy.is_facing_player(player):
+            enemy.turn_around()
+            return False
+
+        if distance > optimal_range:
+            enemy.move_forward()
+            return False
+
+        return True
+
+
+class RangedMoveStrategy(MoveStrategy):
+
+    def needs_move(self, enemy, scene):
+        return not enemy.is_facing_player(scene.player)
+    def update(self, enemy, scene):
+        player = scene.player
+        optimal_range = 10
+        distance = abs(enemy.position - player.position)
+        if not enemy.is_facing_player(player):
+            enemy.turn_around()
+            return False
+
+        if distance < optimal_range:
+            return True
+        else:
+            enemy.move_forward()
+
+        return False
+    
+class MoveState(EnemyState):
+    def __init__(self, move_strategy= MeleeMoveStrategy()):
+        self.phase = Phase.INTENT
+        self.strategy = move_strategy
     def update(self, enemy, scene):
         if self.phase == Phase.INTENT:
             scene.add_message(f"{enemy.name} intends to move")
             self.phase = Phase.EXECUTE
-            return self  # 本回合结束
+            return self
 
-        # === EXECUTE ===
-        if not enemy.is_facing_player(scene.player):
-            enemy.turn_around()
-        else:
-            enemy.move(enemy.direction)
+        if not self.strategy.needs_move(enemy, scene):
+            return AttackState()
+        
+        self.strategy.update(enemy, scene)
 
-        return AddWeaponState()
+        self.phase = Phase.INTENT
+        return self
 
 class AddWeaponState(EnemyState):
+
     def __init__(self):
         self.phase = Phase.INTENT
-
     def update(self, enemy, scene):
-
         finished = enemy.execute_intent(scene)
+
         if finished:
-            return AttackState()
-        else:
-            if self.phase == Phase.INTENT:
-                scene.add_message(f"{enemy.name} is preparing weapons")
-                self.phase = Phase.EXECUTE
-                return self
-            return AddWeaponState()
+            if enemy.strategy.needs_move(enemy, scene):
+                return MoveState(enemy.strategy)
+            else:
+                return AttackState()
+
+        if self.phase == Phase.INTENT:
+            scene.add_message(f"{enemy.name} is preparing weapons")
+            self.phase = Phase.EXECUTE
+            return self
+
+        self.phase = Phase.INTENT
+        return self
+
         
     def get_intent_symbols(self, enemy):
         if self.phase == Phase.INTENT:
@@ -504,7 +561,7 @@ class AttackState(EnemyState):
             return self
 
         scene.execute_actions(enemy)
-        return MoveState()
+        return AddWeaponState()
     
     def get_intent_symbols(self, enemy):
         return ["!"]
@@ -512,8 +569,9 @@ class AttackState(EnemyState):
         if self.phase == Phase.EXECUTE:
             return GREEN   # 即将攻击
         return RED
-
     
+
+
 class SkillEffect:
     """技能效果对象"""
     def __init__(self, name, apply_func):
@@ -522,7 +580,6 @@ class SkillEffect:
 
     def apply(self, player):
         self.apply_func(player)
-
 
 class SkillLibrary:
     """技能库：集中定义所有技能"""
@@ -545,56 +602,48 @@ class SkillLibrary:
 MONSTER_LIBRARY = {
     "DDL":{
         "name": "DDL Fiend",
-        "health": 15,
+        "health": 11,
         "type": "range",
-        "sequence_limit": 3,
-        "weapons": ["Fireball", "Arrow"],
+        "weapons": ["DashToDeadline", "Exam"],
         "intents": [
-            ["Fireball"],
-            ["Arrow"]
+            ["DashToDeadline", "Exam"]
         ]
     },
     "GPA" : {
         "name": "GPA Phantom",
-        "health": 30,
+        "health": 10,
         "type": "range",
-        "sequence_limit": 3,
-        "weapons": ["Dash", "Claw"],
+        "weapons": ["GPA--"],
         "intents": [
-            ["Dash", "Claw"],
-            ["Claw"]
-        ]
-    },
-    "Money" : {
-        "name": "Money Ogre",
-        "health": 40,
-        "type": "melee",
-        "sequence_limit": 3,
-        "weapons": ["Spear","Claw"],
-        "intents": [
-            ["Spear"],
-            ["Spear", "Claw"]
+            ["GPA--"],
         ]
     },
     "BUG":{
         "name": "BUG",
         "health": 5,
         "type": "range",
-        "sequence_limit": 3,
         "weapons": ["Stack Overflow", "Compile Error"],
         "intents": [
             ["Stack Overflow"],
             ["Compile Error"]
         ]
     },
+    "BUG2":{
+        "name": "BUG",
+        "health": 15,
+        "type": "melee",
+        "weapons": ["Nullptr"],
+        "intents": [
+            ["Nullptr"]
+        ]
+    },
 }
 
 WEAPON_LIBRARY = {
-    "Claw": Weapon("Claw", 10, [1], 0, RED, weapon_type="melee",status_effects=[Status("Anxiety","brain")]),
-    "Spear": Weapon("Spear", 5, [1,2], 2, GREEN, weapon_type="melee",unique_in_sequence=False,status_effects=[Status("Stress", "brain",stack=3)]),
-    "Fireball": Weapon("Fireball", 8, [-1,0,1], 1, GREEN, weapon_type="fireball", range=5,status_effects=[Status("Anger", "brain")]),
-    "Arrow": Weapon("Arrow", 5, [1], 1, RED, weapon_type="ranged", range=9,status_effects=[Status("Stress", "brain")]),
-    "Dash": Weapon("Dash", 8, [1], 1, RED, weapon_type="dash_to_enemy", range=5,status_effects=[Status("Dizzy","brain")]),
-    "Stack Overflow": Weapon("Stack Overflow", 6, [1], 1, RED, weapon_type="ranged", range=9,status_effects=[Status("Stress","brain")]),
-    "Compile Error": Weapon("Compile Error", 10, [1], 1, RED, weapon_type="ranged", range=9,status_effects=[Status("Anxiety","brain")]),
+    "Exam": Weapon("Exam", 10, [1], 0, RED, weapon_type="melee",status_effects=[Status("Anxiety","brain")]),
+    "Nullptr": Weapon("Nullptr", 5, [1,2], 0, GREEN, weapon_type="melee",unique_in_sequence=False,status_effects=[Status("Stress", "brain",stack=3)]),
+    "GPA--": Weapon("GPA--", 5, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Stress", "brain")]),
+    "DashToDeadline": Weapon("DashToDeadline", 8, [1], 0, RED, weapon_type="dash_to_enemy", range=5,status_effects=[Status("Dizzy","brain")]),
+    "Stack Overflow": Weapon("Stack Overflow", 8, [-1,0,1], 0, GREEN, weapon_type="fireball", range=5,status_effects=[Status("Anger", "brain")]),
+    "Compile Error": Weapon("Compile Error", 10, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Anxiety","brain")]),
 }

@@ -607,7 +607,7 @@ lang_levels = {
         ("C++", 400, 150, "面向对象的力量开始显现。", ["C"], ["OOP"],"Template Greatsword"),
         ("Pascal", 250, 75, "结构化编程的温柔导师。", ["C"], ["StructuredProgramming"],""),
         # 脚本分支
-        ("Python", 550, 125, "你发现缩进也能写出世界。", ["C"], ["Scripting"],"Snake Staff"),
+        ("Python", 550, 125, "你发现缩进也能写出世界。", ["C"], ["Scripting"],"Snake Roll"),
         ("VisualBasic", 250, 125, "拖一拖，点一点，程序就做好了。", ["C"], ["RapidUI"],""),
     ],
     3: [

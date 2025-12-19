@@ -13,7 +13,7 @@ class Weapon:
         self.status_effects = status_effects or []  # 支持多个状态效果
     
     def is_ready(self):
-        return self.current_cooldown == 0
+        return self.current_cooldown <= 0
     
     def use(self):
         if self.is_ready():
@@ -27,12 +27,12 @@ class Weapon:
 
 weapon_info = {
     "Hello World": {
-        "damage": 5,
+        "damage": 3,
         "pattern": [1],
         "range": 9,
         "cooldown": 0,
         "color": RED,
-        "weapon_type": "roll",
+        "weapon_type": "melee",
         "unique_in_sequence": False
     },
     "Pointer Sword": {
@@ -50,6 +50,14 @@ weapon_info = {
         "cooldown": 4,
         "color": GREEN,
         "weapon_type": "melee",
+        "unique_in_sequence": True
+    },
+    "Snake Roll":{
+        "damage": 5,
+        "pattern": [1],
+        "cooldown": 5,
+        "color": GREEN,
+        "weapon_type": "roll",
         "unique_in_sequence": True
     },
     "Snake Staff":{

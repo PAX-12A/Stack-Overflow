@@ -17,6 +17,8 @@ class FightScene:
         self.player = Player()  # 开始在中间位置
         self.enemies = []
         self.spawn_enemy()
+        self.curent_wave = 1 
+        self.win=False   
         
         # 游戏状态
         self.game_state = "player_turn"  # player_turn, enemy_turn, game_over
@@ -242,15 +244,14 @@ class FightScene:
                     self.add_message("No valid roll target!")
                     self.player.move(1)
                 else:
-                    for pos in range(self.player.position + 1,new_pos):
+                    for pos in range(min(self.player.position + 1, new_pos), 
+                                    max(self.player.position + 1, new_pos)):
                         if self.get_pawn_at(pos,"enemy"):
                             self.get_pawn_at(pos,"enemy").take_damage(actual_damage,scene=self)
                     self.player.position=new_pos
 
             pygame.display.flip()
             # pygame.time.wait(500) # 暂停0.5秒
-            
-            # print(666)
 
 
     def get_roll_target(self):
@@ -391,9 +392,10 @@ class FightScene:
 
     
     def end_player_turn(self):
-        if not self.enemies and self.turn_count>=50:
+        if not self.enemies and self.turn_count>=50 or self.curent_wave>3:
             self.game_state = "game_over"
             self.add_message("胜利!", 300)
+            self.win=True
             return        
         
         self.player.update_cooldowns()
@@ -405,11 +407,16 @@ class FightScene:
 
         self.player.update_statuses()#更新状态
         
-        # 每10回合刷2个敌人
-        if self.turn_count % 10 == 0:
+        # # 每10回合刷2个敌人
+        # if self.turn_count % 10 == 0:
+        #     self.spawn_enemy()
+        #     self.spawn_enemy()
+        if len(self.enemies) == 0 :
             self.spawn_enemy()
             self.spawn_enemy()
-        
+            self.curent_wave += 1
+            
+
         # 执行敌人回合
         pygame.time.set_timer(pygame.USEREVENT + 1, 100)  # 1秒后执行敌人回合
 
@@ -470,7 +477,7 @@ class FightScene:
         arrow_font = get_font("DOS", 24)
         character = pawn.get_sprite()
 
-        if isinstance(pawn, Enemy) and pawn.state.__class__.__name__ == "MoveState":
+        if isinstance(pawn, Enemy) and (pawn.state.phase == Phase.EXECUTE and pawn.state.__class__.__name__ == "MoveState"):
             arrow_color = GREEN
         else:
             arrow_color = GRAY
@@ -553,7 +560,7 @@ class FightScene:
 
         for symbol in pawn.state.get_intent_symbols(pawn):
             text_surface = self.small_font.render(
-                symbol, True, weapon_color   # 👈 颜色仍由 UI 控制
+                symbol, True, weapon_color   # 颜色仍由 UI 控制
             )
             screen.blit(text_surface, (intent_x, intent_y))
             intent_y -= 48
@@ -609,6 +616,9 @@ class FightScene:
         # 绘制回合数
         turn_text = self.font.render(f"Turn: {self.turn_count}", True, WHITE)
         screen.blit(turn_text, (SCREEN_WIDTH- 200, 20))
+
+        wave_text = self.font.render(f"Wave: {self.curent_wave}/3", True, WHITE)
+        screen.blit(wave_text, (SCREEN_WIDTH- 200, 70))
         
         # 绘制武器状态
         weapon_y = 10
@@ -618,7 +628,7 @@ class FightScene:
             
             weapon_text = self.small_font.render(f"{i+1}.    {weapon.name} ({cooldown_text})", True, color)
             screen.blit(weapon_text, (10, weapon_y + i * 30))
-            weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png", (32, 32))
+            weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png", (48, 48))
             render_1bit_sprite(screen, weapon_image, (30, weapon_y + i * 30 - 10 ), color)
         
         # 绘制动作序列
@@ -684,7 +694,7 @@ class FightScene:
         # screen.blit(overlay, (0, 0))
         screen.fill(BLACK)
         
-        if not self.enemies:
+        if self.win:
             end_text = self.large_font.render("Congratulations!", True, GREEN)
         else:
             end_text = self.font.render("You Failed!", True, RED)

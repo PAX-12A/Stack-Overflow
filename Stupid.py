@@ -40,7 +40,6 @@ class MainMenu:
         title_rect = title_surface.get_rect(center=(SCREEN_WIDTH//2, 100))
         screen.blit(title_surface, title_rect)
 
-
         for i, option in enumerate(self.options):
             color=WHITE
             if i == self.selected:
@@ -57,6 +56,12 @@ class MainMenu:
 
     def intro(self,screen):
         screen.fill(BLACK)
+        welcome = load_image(f"arts/terminal of life.png",(1024,512))
+        screen.blit(welcome,((SCREEN_WIDTH-welcome.get_width())//2,100))
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)).convert_alpha()
+        overlay.fill((0, 0, 0, 180))
+        screen.blit(overlay,((SCREEN_WIDTH-welcome.get_width())//2,100))
+
         intro_text = [
         "Welcome to the glorious world of S.T.U.P.I.D.",
         "The game itself is developed by a stupid programmer,",
@@ -133,7 +138,6 @@ class MenuState(GameState):
     def draw(self):
         self.app.menu.draw(self.app.screen)
 
-
 class PlayingState(GameState):
     def __init__(self, app):
         self.app = app
@@ -182,7 +186,6 @@ class GameOverState(GameState):
 
     def draw(self):
         self.app.scene.draw(self.app.screen)
-
 def main():
     pygame.init()
     app = GameApp()

@@ -283,22 +283,35 @@ class Player(Actor):
     
     def get_sprite(self):
         return load_image("arts/sprite/Character/hero.png")
+    
+class MonsterBlueprint:
+    def __init__(self, id):
+        data= MONSTER_LIBRARY[id]
+        self.name = data["name"]
+        self.health = data["health"]
+        self.sequence_limit = data["sequence_limit"]
+        self.weapon_ids = data["weapons"]
+        self.intents = data["intents"]
+        self.type = data["type"]
+
+    def create_weapons(self):
+        return [WEAPON_LIBRARY[w] for w in self.weapon_ids]
 
 class Enemy(Actor):
-    def __init__(self,monster_id,position=5):
-        monster_data = MONSTER_LIBRARY[monster_id]
+    def __init__(self,blueprint,position=5):
+        # monster_data = MONSTER_LIBRARY[monster_id]
         super().__init__(position, 
-                         health=monster_data["health"], 
-                         sequence_limit=monster_data["sequence_limit"])
+                         health=blueprint.health, 
+                         sequence_limit=blueprint.sequence_limit)
 
-        self.name = monster_data["name"]
-        self.type = monster_data["type"]
+        self.name = blueprint.name
+        self.type = blueprint.type
 
         # 根据怪物表装载武器
-        self.weapons = [WEAPON_LIBRARY[w] for w in monster_data["weapons"]]
+        self.weapons = blueprint.create_weapons()
 
         # 怪物的固定意图（技能组合）
-        self.intents = monster_data.get("intents", [])
+        self.intents = blueprint.intents        # 出招表（静态）
         self.intent_index = 0           # 当前执行到第几个意图
         self.intent_progress = 0        # 当前意图中的武器进度
 

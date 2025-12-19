@@ -385,20 +385,9 @@ class FightScene:
             monster_id = random.choice(list(MONSTER_LIBRARY.keys()))
 
         print(f"Spawned Monster: {monster_id}")
-        data = MONSTER_LIBRARY[monster_id]
+        blueprint = MonsterBlueprint(monster_id)
         
-        enemy = Enemy(monster_id,position)
-        enemy.name = data["name"]
-        enemy.health = data["health"]
-        enemy.sequence_limit = data["sequence_limit"]
-        
-        # 绑定武器（假设你已有 WEAPON_LIBRARY）
-        enemy.weapons = [WEAPON_LIBRARY[w] for w in data["weapons"]]
-        
-        # 固定意图
-        enemy.intents = data["intents"]
-        
-        return enemy
+        return Enemy(blueprint,position)
 
     
     def end_player_turn(self):

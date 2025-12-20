@@ -3,6 +3,7 @@ import random
 from font_manager import get_font
 from colors import *
 from Charactor import *
+from Damage import *
 
 class FightScene:
     def __init__(self):
@@ -206,11 +207,25 @@ class FightScene:
         if self.player.battle_style == "stack":# stack风格反转序列
             executed_actions.reverse()
         self.print_executed_actions(executed_actions)
-
+        
         for weapon_index, weapon in executed_actions:
-            multiplier = actor.damage_multiplier
-            actual_damage = int(weapon.damage * multiplier)
-            # print(f"actual_damage:{actual_damage}")
+            # === 1. 加算 / 基础阶段 ===
+            base = int(weapon.damage * actor.damage_multiplier)
+            damage = Damage(base)
+
+            # === 2. Decorator 阶段（按规则包） ===
+            if isinstance(actor, Player):
+                print(f"Player enabled decorators: {actor.enabled_damage_decorators}")
+                if "DDL_fever" in actor.enabled_damage_decorators:
+                    damage = DDLFeverDecorator(damage, actor)
+
+            # 以后可以继续包：
+            # damage = CriticalDecorator(damage)
+            # damage = VulnerableDecorator(damage, target)
+            # damage = ShieldDecorator(damage, target)
+
+            actual_damage = damage.value()
+
             # --- 类型1: melee / ranged（固定 pattern 攻击） ---
             if weapon.weapon_type in ["melee", "meleeMove"]:
                 if weapon.weapon_type == "meleeMove":
@@ -282,9 +297,6 @@ class FightScene:
                 return group[-1] - 1 if group and group[-1] + 1<= BOARDSIZE else None
 
             return None
-
-
-
 
     def attack_by_pattern(self,weapon,actual_damage,actor):
 
@@ -447,7 +459,7 @@ class FightScene:
             # if i == self.player.position:
             #     color = GRAY  # 玩家位置
             
-            pygame.draw.rect(screen, color, rect)
+            # pygame.draw.rect(screen, color, rect)
             pygame.draw.rect(screen, GRAY, rect, 2)
             
             # 绘制位置编号
@@ -467,9 +479,13 @@ class FightScene:
             health_width = 40
             health_x = enemy_center[0] - health_width // 2
             health_y = enemy_center[1] - 35
+
+
             
             pygame.draw.rect(screen,SHADOW, (health_x, health_y, health_width, 6))
             pygame.draw.rect(screen, WHITE, (health_x, health_y, int(health_width * health_ratio), 6))
+            hp_text = self.small_font.render(str(enemy.health), True, GREEN)
+            screen.blit(hp_text, (health_x + health_width // 2 - hp_text.get_width() // 2, health_y -10 ))
 
             self.draw_pawns(screen, enemy)
 
@@ -671,6 +687,9 @@ class FightScene:
             self.messages.remove(msg)    
     
     def draw(self, screen):
+        # bg=load_image('arts/bg.gif')
+        # screen.blit(bg,(0,-200))
+
         # 绘制网格
         self.draw_grid(screen)
         

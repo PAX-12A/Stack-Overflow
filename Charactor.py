@@ -77,7 +77,7 @@ class Status:
             new_disease_name = random.choice(diseases)
             illness = Status(new_disease_name, body_part, is_illness=True,duration=50)
             owner.add_status(illness)
-            print(f"[!] {owner} 的 {status.stack} 层压力转化为 {illness.name}")
+            #print(f"[!] {owner} 的 {status.stack} 层压力转化为 {illness.name}")
             return illness
         
         return None
@@ -213,7 +213,7 @@ class Actor:
 
 class Player(Actor):
     def __init__(self, position=2):
-        super().__init__(position, health=100, sequence_limit=2)
+        super().__init__(position, health=50, sequence_limit=2)
         self.weapons = []
         self.skill_points = {
             "tech": 20,
@@ -222,7 +222,7 @@ class Player(Actor):
             "skill":5,
         }
         self.swap_cooldown = 0  # 记录换位剩余冷却回合数
-        self.available_skills = set(["Greenhand"])  # 可见技能
+        self.available_skills = set(["Greenhand","DDL fever"])  # 可见技能
         self.learned_skills = set(["Student"])
         self.skill_effects = {}  # 技能效果字典
         attribute_names = {
@@ -236,6 +236,7 @@ class Player(Actor):
         self.base_stats = {k: 10 for k in ['S', 'I', 'M', 'P', 'L', 'E']}
 
         self.unlock_weapon("Hello World")  # 初始武器
+        self.enabled_damage_decorators: set[str] = set() # 启用的伤害装饰器名称集合
 
     def die(self,scene):
         """玩家死亡时的特殊逻辑"""
@@ -598,6 +599,10 @@ class SkillLibrary:
         SkillLibrary.register("queue", lambda p: setattr(p, "sequence_limit", p.sequence_limit + 1))
         SkillLibrary.register("Greenhand", lambda p: setattr(p, "max_health", p.max_health + 20))
         SkillLibrary.register("Hello world", lambda p: setattr(p, "sequence_limit", p.sequence_limit + 1))
+        SkillLibrary.register(
+            "DDL fever",
+            lambda p: p.enabled_damage_decorators.add("DDL_fever")
+        )
 
 MONSTER_LIBRARY = {
     "DDL":{
@@ -606,6 +611,7 @@ MONSTER_LIBRARY = {
         "type": "range",
         "weapons": ["DashToDeadline", "Exam"],
         "intents": [
+            ["DashToDeadline"],
             ["DashToDeadline", "Exam"]
         ]
     },
@@ -643,7 +649,7 @@ WEAPON_LIBRARY = {
     "Exam": Weapon("Exam", 10, [1], 0, RED, weapon_type="melee",status_effects=[Status("Anxiety","brain")]),
     "Nullptr": Weapon("Nullptr", 5, [1,2], 0, GREEN, weapon_type="melee",unique_in_sequence=False,status_effects=[Status("Stress", "brain",stack=3)]),
     "GPA--": Weapon("GPA--", 5, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Stress", "brain")]),
-    "DashToDeadline": Weapon("DashToDeadline", 8, [1], 0, RED, weapon_type="dash_to_enemy", range=5,status_effects=[Status("Dizzy","brain")]),
+    "DashToDeadline": Weapon("DashToDeadline", 3, [1], 0, RED, weapon_type="dash_to_enemy", range=5,status_effects=[Status("Dizzy","brain")]),
     "Stack Overflow": Weapon("Stack Overflow", 8, [-1,0,1], 0, GREEN, weapon_type="fireball", range=5,status_effects=[Status("Anger", "brain")]),
     "Compile Error": Weapon("Compile Error", 10, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Anxiety","brain")]),
 }

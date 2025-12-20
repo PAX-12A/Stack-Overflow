@@ -4,6 +4,8 @@ from font_manager import get_font
 from colors import *
 from Charactor import *
 from Damage import *
+from events import *
+from animation import *
 
 class FightScene:
     def __init__(self):
@@ -25,7 +27,14 @@ class FightScene:
         self.game_state = "player_turn"  # player_turn, enemy_turn, game_over
         self.turn_count = 0
         self.messages = []  # 队列，最新的消息插入末尾
-        
+
+        self.events = EventQueue()
+        self.animations = []
+        self.slash_frames = [# 临时措施
+            load_image(f"arts/sprite/slash/slash_{i}.png", (50, 50))
+            for i in range(3)
+        ]
+
         # 字体
         self.font = get_font("Cogmind",20)
         self.small_font = get_font("DOS",20)
@@ -34,6 +43,11 @@ class FightScene:
         self.player.on_move_check = self.handle_move#回调函数绑定
         for enemy in self.enemies:
             enemy.on_move_check = self.handle_move
+    def update_animations(self):
+        for anim in self.animations[:]:
+            anim.update()
+            if anim.finished:
+                self.animations.remove(anim)
 
 
     def get_player_data(self):
@@ -250,7 +264,7 @@ class FightScene:
                         position = closest_pawn.position + offset
                         pawn = self.get_pawn_at(position,pawn_type="all")
                         if pawn:
-                            pawn.take_damage(actual_damage,scene=self)
+                            self.events.push(DamageEvent(actor, pawn, actual_damage)) #入队
                             actor.apply_weapon_effects(pawn, weapon)
 
             elif weapon.weapon_type == "roll":
@@ -262,7 +276,8 @@ class FightScene:
                     for pos in range(min(self.player.position + 1, new_pos), 
                                     max(self.player.position + 1, new_pos)):
                         if self.get_pawn_at(pos,"enemy"):
-                            self.get_pawn_at(pos,"enemy").take_damage(actual_damage,scene=self)
+                            # self.get_pawn_at(pos,"enemy").take_damage(actual_damage,scene=self)
+                            self.events.push(DamageEvent(actor, pawn, actual_damage)) #入队
                     self.player.position=new_pos
 
             pygame.display.flip()
@@ -298,16 +313,36 @@ class FightScene:
 
             return None
 
-    def attack_by_pattern(self,weapon,actual_damage,actor):
+    def attack_by_pattern(self, weapon, actual_damage, actor):
+        attack_positions = self.get_adjusted_attack_positions(weapon, actor)
 
-        attack_positions = self.get_adjusted_attack_positions(weapon,actor)
-        for enemy in self.enemies[:]:
+        targets = []
+
+        for enemy in self.enemies:
             if enemy.position in attack_positions:
-                enemy.take_damage(actual_damage,scene=self)
-                actor.apply_weapon_effects(enemy, weapon)
+                targets.append(enemy)
+
         if self.player.position in attack_positions:
-            self.player.take_damage(actual_damage,scene=self)
-            actor.apply_weapon_effects(self.player, weapon)
+            targets.append(self.player)
+
+        if not targets:
+            return
+
+        # 只播放一次攻击动画
+        center = self.get_cell_center(actor.position + actor.direction)
+        self.animations.append(
+            SlashAttackAnimation(
+                frames=self.slash_frames,
+                center_pos=center,
+                direction=actor.direction
+            )
+        )
+
+        # 所有命中目标入队伤害事件
+        for target in targets:
+            self.events.push(DamageEvent(actor, target, actual_damage))
+            actor.apply_weapon_effects(target, weapon)
+
 
 
     def shoot(self, weapon,actual_damage,actor):
@@ -404,7 +439,9 @@ class FightScene:
 
     
     def end_player_turn(self):
-        if not self.enemies and self.turn_count>=50 or self.curent_wave>3:
+        self.process_events()
+
+        if  self.curent_wave>4:
             self.game_state = "game_over"
             self.add_message("胜利!", 300)
             self.win=True
@@ -633,7 +670,7 @@ class FightScene:
         turn_text = self.font.render(f"Turn: {self.turn_count}", True, WHITE)
         screen.blit(turn_text, (SCREEN_WIDTH- 200, 20))
 
-        wave_text = self.font.render(f"Wave: {self.curent_wave}/3", True, WHITE)
+        wave_text = self.font.render(f"Wave: {self.curent_wave}/4", True, WHITE)
         screen.blit(wave_text, (SCREEN_WIDTH- 200, 70))
         
         # 绘制武器状态
@@ -695,6 +732,11 @@ class FightScene:
         
         # 绘制实体
         self.draw_entities(screen)
+
+        for anim in self.animations:
+            anim.draw(screen)
+
+        self.update_animations()
         
         # 绘制UI
         self.draw_ui(screen)
@@ -734,5 +776,36 @@ class FightScene:
         self.game_state = "player_turn"
         self.turn_count = 0
         self.message = []
+
+    def process_events(self):
+        while not self.events.empty():
+            event = self.events.pop()
+            self.handle_scene_event(event)
+
+    def handle_scene_event(self, event):
+
+        if isinstance(event, DamageEvent):
+            event.target.health -= event.amount
+            print(f"{event.target} took {event.amount} damage, health now {event.target.health}")
+
+            if event.target.health <= 0:
+                self.events.push(DeathEvent(event.target))
+
+        elif isinstance(event, DeathEvent):
+            pawn = event.pawn
+            pawn.die()
+
+            if isinstance(pawn, Enemy):
+                if pawn in self.enemies:
+                    self.enemies.remove(pawn)
+                self.events.push(MessageEvent("Enemy Defeated!", GREEN))
+
+            elif isinstance(pawn, Player):
+                self.game_state = "game_over"
+
+        elif isinstance(event, MessageEvent):
+            self.add_message(event.text, event.color)
+
+
 
 

@@ -3,6 +3,7 @@ import random
 from font_manager import get_font
 from colors import *
 from Weapon import Weapon,weapon_info
+from events import DeathEvent
 
 class Status:
     def __init__(self, name, body_part, duration= 5,is_temp=True, is_illness=False, stack=1, unique=True):
@@ -133,19 +134,20 @@ class Actor:
         return [s for s in self.status if s.body_part == part]
     
     def take_damage(self, damage, scene):
-        """接受伤害并检查是否死亡"""
         self.health -= damage
+
+        self.add_status(Status("Simplified", "brain", is_illness=True))
+
         if self.health <= 0:
-            self.die(scene)  # 传入场景来移除角色
-        self.add_status(Status("Simplified", "brain", is_illness=True))#666
+            scene.events.push(DeathEvent(self))
+
         # self.add_status(Status("PC addict", "brain", is_illness=True))
         # self.add_status(Status("Diabetes", "wholebody", is_illness=True))
 
-    def die(self, scene):
+    def die(self):
         """角色死亡的基础逻辑"""
         self.health = 0  # 确保血量为 0
         self.alive = False
-        self.remove_from_scene(scene)  # 从场景中移除角色
 
     def remove_from_scene(self, scene):
         """从场景中移除角色"""
@@ -238,10 +240,10 @@ class Player(Actor):
         self.unlock_weapon("Hello World")  # 初始武器
         self.enabled_damage_decorators: set[str] = set() # 启用的伤害装饰器名称集合
 
-    def die(self,scene):
+    def die(self):
         """玩家死亡时的特殊逻辑"""
-        super().die(scene)  # 调用父类的 die() 处理基本死亡逻辑
-        scene.game_state = "game_over"   # ✅ 切换游戏状态，而不是删掉 player
+        super().die()  # 调用父类的 die() 处理基本死亡逻辑
+        #self.game_state = "game_over"   # ✅ 切换游戏状态，而不是删掉 player
 
     def game_over(self):
         """游戏结束的逻辑"""
@@ -329,9 +331,9 @@ class Enemy(Actor):
         self.state = AddWeaponState()  # 初始状态
         
 
-    def die(self,scene):
+    def die(self):
         """敌人死亡时的特殊逻辑"""
-        super().die(scene)  # 调用父类的 die() 处理基本死亡逻辑
+        super().die()  # 调用父类的 die() 处理基本死亡逻辑
         print(f"Enemy dropped loot!")  # 显示敌人掉落物品提示
         # 这里可以增加掉落物品的逻辑
 

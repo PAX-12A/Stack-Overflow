@@ -4,7 +4,6 @@ from colors import *
 class Event:
     pass
 
-
 class EventQueue:
     def __init__(self):
         self.queue = deque()
@@ -18,18 +17,15 @@ class EventQueue:
     def empty(self):
         return not self.queue
     
-
 class DamageEvent(Event):
     def __init__(self, source, target, amount):
         self.source = source
         self.target = target
         self.amount = amount
 
-
 class DeathEvent(Event):
     def __init__(self, pawn):
         self.pawn = pawn
-
 
 class MessageEvent(Event):
     def __init__(self, text, color=WHITE):

@@ -212,7 +212,7 @@ class FightScene:
 
         for i, (index, weapon) in enumerate(executed_actions):
             end_char = "->" if i < len(executed_actions) - 1 else "\n"
-            print(f"{weapon.name}({index})", end=end_char)
+            print(f"Action Sequence:{weapon.name}({index})", end=end_char)
 
 
     def execute_actions(self,actor):
@@ -406,7 +406,8 @@ class FightScene:
             target_pos = actor.position + actual_offset
             if 0 <= target_pos < self.grid_size:
                 adjusted_positions.append(target_pos)
-        print(f"方向: {actor.direction}, 攻击格子: {adjusted_positions}")
+        name = getattr(actor, 'name', 'Player')
+        print(f"{name}攻击方向: {actor.direction}, 攻击格子: {adjusted_positions}")
         return adjusted_positions
     
     def get_occupied_positions(self):
@@ -429,15 +430,10 @@ class FightScene:
 
     def spawn_random_enemy(self , position, monster_id=None):
         """从图纸库中生成敌人。"""
-        if monster_id is None:
-            monster_id = random.choice(list(MONSTER_LIBRARY.keys()))
+        enemy = EnemyFactory.create(position)
+        # self.enemies.append(enemy)
 
-        print(f"Spawned Monster: {monster_id}")
-        blueprint = MonsterBlueprint(monster_id)
-        
-        return Enemy(blueprint,position)
-
-    
+        return enemy
     def end_player_turn(self):
         self.process_events()
 
@@ -463,6 +459,7 @@ class FightScene:
         if len(self.enemies) == 0 :
             self.spawn_enemy()
             self.spawn_enemy()
+            self.spawn_enemy()
             self.curent_wave += 1
             
 
@@ -470,6 +467,7 @@ class FightScene:
         pygame.time.set_timer(pygame.USEREVENT + 1, 100)  # 1秒后执行敌人回合
 
     def end_enemy_turn(self):
+        self.process_events()
         for enemy in self.enemies :      
             enemy.update_cooldowns()
         if self.game_state != "game_over":
@@ -517,8 +515,6 @@ class FightScene:
             health_x = enemy_center[0] - health_width // 2
             health_y = enemy_center[1] - 35
 
-
-            
             pygame.draw.rect(screen,SHADOW, (health_x, health_y, health_width, 6))
             pygame.draw.rect(screen, WHITE, (health_x, health_y, int(health_width * health_ratio), 6))
             hp_text = self.small_font.render(str(enemy.health), True, GREEN)
@@ -786,7 +782,7 @@ class FightScene:
 
         if isinstance(event, DamageEvent):
             event.target.health -= event.amount
-            print(f"{event.target} took {event.amount} damage, health now {event.target.health}")
+            #print(f"{event.target} took {event.amount} damage, health now {event.target.health}")
 
             if event.target.health <= 0:
                 self.events.push(DeathEvent(event.target))

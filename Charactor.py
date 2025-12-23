@@ -301,13 +301,21 @@ class MonsterBlueprint:
 
     def create_weapons(self):
         return [WEAPON_LIBRARY[w] for w in self.weapon_ids]
+    
+class EnemyFactory:
+    @staticmethod
+    def create(position, monster_id=None):
+        if monster_id is None:
+            monster_id = random.choice(list(MONSTER_LIBRARY.keys()))
+        print(f"Spawned Monster: {monster_id}")
+
+        blueprint = MonsterBlueprint(monster_id)
+        return Enemy(blueprint, position)
+
 
 class Enemy(Actor):
     def __init__(self,blueprint,position=5):
-        # monster_data = MONSTER_LIBRARY[monster_id]
-        super().__init__(position, 
-                         health=blueprint.health, 
-                         sequence_limit=3)
+        super().__init__(position, health=blueprint.health, sequence_limit=3)
 
         self.name = blueprint.name
         self.type = blueprint.type
@@ -316,19 +324,15 @@ class Enemy(Actor):
         self.weapons = blueprint.create_weapons()
 
         # 怪物的固定意图（技能组合）
-        self.intents = blueprint.intents        # 出招表（静态）
+        self.intents = blueprint.intents# 出招表（静态）
         self.intent_index = 0           # 当前执行到第几个意图
         self.intent_progress = 0        # 当前意图中的武器进度
 
-        # self.waiting = False  
-        # self.ready_to_attack = False
-        # self.adding = False
-        # self.moving = False
         if self.type == "melee":
             self.strategy = MeleeMoveStrategy()
         else:
             self.strategy = RangedMoveStrategy()
-        self.state = AddWeaponState()  # 初始状态
+        self.state = AddWeaponState()  # 初始状态为试图添加武器攻击玩家
         
 
     def die(self):

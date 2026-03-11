@@ -9,12 +9,12 @@ pygame.init()
 
 pygame.mixer.init()  # 初始化音频系统
 # 载入背景音乐
-try:
-    pygame.mixer.music.load("assets/music/illusion.mp3")  # 音乐文件路径
-    pygame.mixer.music.set_volume(0)  # 设置音量（0.0 到 1.0）
-    pygame.mixer.music.play(-1)  # -1 表示循环播放
-except pygame.error as e:
-    print(f"无法载入背景音乐: {e}")
+# try:
+#     pygame.mixer.music.load("assets/music/illusion.mp3")  # 音乐文件路径
+#     pygame.mixer.music.set_volume(0)  # 设置音量（0.0 到 1.0）
+#     pygame.mixer.music.play(-1)  # -1 表示循环播放
+# except pygame.error as e:
+#     print(f"无法载入背景音乐: {e}")
 
 class MainMenu:
     def __init__(self, font):
@@ -155,6 +155,7 @@ class PlayingState(GameState):
 
     def update(self):
         self.app.toolbar.update(self.app.scene.player)
+        self.app.scene.update()
 
         if self.app.scene.game_state == "game_over":
             self.app.state = GameOverState(self.app)
@@ -186,6 +187,7 @@ class GameOverState(GameState):
 
     def draw(self):
         self.app.scene.draw(self.app.screen)
+        
 def main():
     pygame.init()
     app = GameApp()
@@ -241,6 +243,8 @@ def main():
 #                 elif choice == "Quit":
 #                     running = False
 #             elif game_state == GAME_STATE_PLAYING:
+
+
 #                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
 #                     pass
 #                 elif event.type == pygame.USEREVENT + 1:
@@ -268,6 +272,7 @@ def main():
 #             menu.draw(screen)
 #         elif game_state == GAME_STATE_PLAYING:
 #             toolbar.update(fight_scene.player)  # 这里处理科技树等进度
+
 #             screen.fill(BLACK)
 #             if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
 #                 fight_scene.draw(screen)

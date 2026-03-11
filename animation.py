@@ -1,50 +1,56 @@
 import pygame
+from colors import *
 
+class AnimationController:
+    def __init__(self, pawn):
+        self.pawn = pawn
+        self.current = None
+        self.default = None
+
+    def play(self, anim):
+        self.current = anim
+        anim.reset()
+
+    def update(self, dt):
+        if self.current:
+            finished = self.current.update(dt)
+            if finished:
+                self.current = None
+
+    def get_frame(self):
+        if self.current:
+            return self.current.get_frame()
+        elif self.default:
+            return self.default.get_frame()
+        return self.pawn.get_sprite()
+    
 class FrameAnimation:
-    def __init__(self, frames, frame_duration, loop=False):
-        """
-        frames: [Surface, Surface, ...]
-        frame_duration: 每帧毫秒
-        """
+    def __init__(self, frames, speed=0.1, loop=False):
         self.frames = frames
-        self.frame_duration = frame_duration
+        self.speed = speed
         self.loop = loop
+        self.time = 0
+        self.index = 0
 
-        self.start_time = pygame.time.get_ticks()
-        self.finished = False
+    def reset(self):
+        self.time = 0
+        self.index = 0
 
-        self.current_frame = self.frames[0]
+    def update(self, dt):
+        self.time += dt
+        if self.time >= self.speed:
+            self.time = 0
+            self.index += 1
 
-    def update(self):
-        now = pygame.time.get_ticks()
-        elapsed = now - self.start_time
+            if self.index >= len(self.frames):
+                if self.loop:
+                    self.index = 0
+                else:
+                    return True  # finished
 
-        frame_count = len(self.frames)
-        index = elapsed // self.frame_duration
+        return False
 
-        if not self.loop and index >= frame_count:
-            self.finished = True
-            index = frame_count - 1
-
-        self.current_frame = self.frames[index % frame_count]
-
-    def draw(self, screen, pos):
-        screen.blit(self.current_frame, pos)
-
-
-class SlashAttackAnimation(FrameAnimation):
-    def __init__(self, frames, center_pos, direction, frame_duration=60):
-        super().__init__(frames, frame_duration, loop=False)
-
-        self.center_pos = center_pos
-        self.direction = direction
-
-    def draw(self, screen):
-        img = self.current_frame
-
-        if self.direction == -1:
-            img = pygame.transform.flip(img, True, False)
-
-        rect = img.get_rect(center=self.center_pos)
-        screen.blit(img, rect)
-
+    def get_frame(self):
+        if not self.frames:
+            return None
+        return self.frames[min(self.index, len(self.frames) - 1)]

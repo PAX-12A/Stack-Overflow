@@ -32,3 +32,8 @@ class MessageEvent(Event):
         self.text = text
         self.color = color
 
+class AttackAction:
+    def __init__(self, actor, weapon, damage):
+        self.actor = actor
+        self.weapon = weapon
+        self.damage = damage

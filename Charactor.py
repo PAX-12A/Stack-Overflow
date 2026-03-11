@@ -4,6 +4,8 @@ from font_manager import get_font
 from colors import *
 from Weapon import Weapon,weapon_info
 from events import DeathEvent
+from statemachine import *
+from animation import *
 
 class Status:
     def __init__(self, name, body_part, duration= 5,is_temp=True, is_illness=False, stack=1, unique=True):
@@ -91,7 +93,7 @@ DISEASE_CONVERSION_TABLE = {
 }
 
 class Actor:
-    def __init__(self, position=0, health=100, sequence_limit=2):
+    def __init__(self, scene ,position=0, health=100, sequence_limit=2):
         self.position = position
         self.direction = 1
         self.health = health
@@ -105,6 +107,19 @@ class Actor:
         self.battle_style = "queue"  # 或 stack
         self.on_move_check = None  # 回调（检测位置交换等）
         self.alive = True   # 是否存活
+        self.state_machine = StateMachine(self)
+        self.anim = AnimationController(self)
+        self.scene = scene
+        self.events = scene.events
+        self.vfx = scene.vfx 
+        self.slash_frames = [# 临时措施
+            load_image(f"arts/sprite/slash/slash_{i}.png", (50, 50))
+            for i in range(3)
+        ]
+
+    def get_cell_center(self, pos):
+        return self.scene.get_cell_center(pos)
+
 
     def add_status(self, new_status):
         """添加状态：如果 unique 且已有同名，就覆盖"""
@@ -115,7 +130,7 @@ class Actor:
                     s.stack = new_status.stack+s.stack
                     return
         self.status.append(new_status)
-        print("Added status:", new_status)
+        # print("Added status:", new_status)
 
     def apply_weapon_effects(self, target, weapon):
         """应用武器的附加状态"""
@@ -214,8 +229,9 @@ class Actor:
         raise NotImplementedError
 
 class Player(Actor):
-    def __init__(self, position=2):
-        super().__init__(position, health=50, sequence_limit=2)
+    def __init__(self,scene,position=2):
+        super().__init__(scene,position, health=50, sequence_limit=2)
+        self.name="Player"
         self.weapons = []
         self.skill_points = {
             "tech": 20,
@@ -239,6 +255,13 @@ class Player(Actor):
 
         self.unlock_weapon("Hello World")  # 初始武器
         self.enabled_damage_decorators: set[str] = set() # 启用的伤害装饰器名称集合
+        self.idle_frames = [load_image(f"arts/sprite/Character/hero.png", (64, 64))]
+        self.attack_frames = [
+            load_image(f"arts/sprite/Character/hero{i}.png", (64, 64))
+            for i in range(6)
+        ]
+        self.state_machine.change(IdleState(self))
+
 
     def die(self):
         """玩家死亡时的特殊逻辑"""
@@ -288,7 +311,7 @@ class Player(Actor):
         return True
     
     def get_sprite(self):
-        return load_image("arts/sprite/Character/hero.png")
+        return load_image("arts/sprite/Character/hero.png",(64,64))
     
 class MonsterBlueprint:
     def __init__(self, id):
@@ -304,18 +327,18 @@ class MonsterBlueprint:
     
 class EnemyFactory:
     @staticmethod
-    def create(position, monster_id=None):
+    def create(events,position, monster_id=None):
         if monster_id is None:
             monster_id = random.choice(list(MONSTER_LIBRARY.keys()))
         print(f"Spawned Monster: {monster_id}")
 
         blueprint = MonsterBlueprint(monster_id)
-        return Enemy(blueprint, position)
+        return Enemy(events,blueprint, position)
 
 
 class Enemy(Actor):
-    def __init__(self,blueprint,position=5):
-        super().__init__(position, health=blueprint.health, sequence_limit=3)
+    def __init__(self,scene,blueprint,position=5):
+        super().__init__(scene,position, health=blueprint.health, sequence_limit=3)
 
         self.name = blueprint.name
         self.type = blueprint.type
@@ -333,12 +356,17 @@ class Enemy(Actor):
         else:
             self.strategy = RangedMoveStrategy()
         self.state = AddWeaponState()  # 初始状态为试图添加武器攻击玩家
+        self.idle_frames = [load_image(f"arts/sprite/Character/{self.name}.png", (48, 48))]
+        self.attack_frames = [# 临时措施
+            load_image(f"arts/sprite/Character/{self.name}.png", (48, 48))
+        ]
+        self.state_machine.change(IdleState(self))
         
 
     def die(self):
         """敌人死亡时的特殊逻辑"""
         super().die()  # 调用父类的 die() 处理基本死亡逻辑
-        print(f"Enemy dropped loot!")  # 显示敌人掉落物品提示
+        # print(f"Enemy dropped loot!")  # 显示敌人掉落物品提示
         # 这里可以增加掉落物品的逻辑
 
     def get_sprite(self):
@@ -362,7 +390,7 @@ class Enemy(Actor):
 
             if weapon_index is not None:
                 success, msg = self.try_add_weapon_to_sequence(weapon_index, scene)
-                print(msg)
+                # print(msg)
                 if success:
                     self.intent_progress += 1
                     self.adding = False
@@ -523,7 +551,7 @@ class MoveState(EnemyState):
             return self
 
         if not self.strategy.needs_move(enemy, scene):
-            return AttackState()
+            return EAttackState()
         
         self.strategy.update(enemy, scene)
 
@@ -541,7 +569,7 @@ class AddWeaponState(EnemyState):
             if enemy.strategy.needs_move(enemy, scene):
                 return MoveState(enemy.strategy)
             else:
-                return AttackState()
+                return EAttackState()
 
         if self.phase == Phase.INTENT:
             scene.add_message(f"{enemy.name} is preparing weapons")
@@ -557,7 +585,7 @@ class AddWeaponState(EnemyState):
             return ["+"]
         return []
 
-class AttackState(EnemyState):
+class EAttackState(EnemyState):
     def __init__(self):
         self.phase = Phase.INTENT
 

@@ -6,6 +6,7 @@ from Weapon import Weapon,weapon_info
 from events import DeathEvent
 from statemachine import *
 from animation import *
+from grid import *
 
 class Status:
     def __init__(self, name, body_part, duration= 5,is_temp=True, is_illness=False, stack=1, unique=True):
@@ -93,8 +94,9 @@ DISEASE_CONVERSION_TABLE = {
 }
 
 class Actor:
-    def __init__(self, scene ,position=0, health=100, sequence_limit=2):
+    def __init__(self, scene ,position=Vec2(1,1), health=100, sequence_limit=2):
         self.position = position
+        self.render_pos = Vec2(float(position.x),float(position.y))
         self.direction = 1
         self.health = health
         self.max_health = health
@@ -203,24 +205,31 @@ class Actor:
         return executed_actions
     
     def can_move_to(self, new_pos):
-        return 0 <= new_pos <= BOARDSIZE
+        return 0 <= new_pos.x <= GRID_WIDTH and 0 <= new_pos.y <= GRID_HEIGHT
     
     def turn_around(self):
         self.direction *= -1
     
     def move(self, offset):
+        #print(self.position)
+        old_pos = self.position
         new_pos = self.position + offset
 
         # === 让外部来决定能否移动（以及是否交换位置） ===
         if self.on_move_check:
             new_pos = self.on_move_check(self, new_pos)
 
-        if new_pos is not None:
-            self.position = new_pos
-            return True
-        # else:
-        #     print("不能移动到该位置")
-        return False
+        #print(new_pos)
+
+        if new_pos is None:
+            return False
+
+        self.position = new_pos
+
+        self.state_machine.change(              # 走 state_machine
+            MoveState(self, old_pos , new_pos)   # MoveState 内部负责插值和播帧
+        )
+        return True
     
     def move_forward(self):
         return self.move(self.direction)
@@ -229,8 +238,8 @@ class Actor:
         raise NotImplementedError
 
 class Player(Actor):
-    def __init__(self,scene,position=2):
-        super().__init__(scene,position, health=50, sequence_limit=2)
+    def __init__(self,scene,position=Vec2(1,1)):
+        super().__init__(scene,position, health=50, sequence_limit=4)
         self.name="Player"
         self.weapons = []
         self.skill_points = {
@@ -255,7 +264,10 @@ class Player(Actor):
 
         self.unlock_weapon("Hello World")  # 初始武器
         self.enabled_damage_decorators: set[str] = set() # 启用的伤害装饰器名称集合
-        self.idle_frames = [load_image(f"arts/sprite/Character/hero.png", (64, 64))]
+        self.idle_frames = [
+            load_image(f"arts/sprite/Character/hero-idle{i}.png", (64, 64))
+            for i in range(2)
+        ]
         self.attack_frames = [
             load_image(f"arts/sprite/Character/hero{i}.png", (64, 64))
             for i in range(6)
@@ -327,17 +339,17 @@ class MonsterBlueprint:
     
 class EnemyFactory:
     @staticmethod
-    def create(events,position, monster_id=None):
+    def create(scene,position, monster_id=None):
         if monster_id is None:
             monster_id = random.choice(list(MONSTER_LIBRARY.keys()))
-        print(f"Spawned Monster: {monster_id}")
+        # print(f"Spawned Monster: {monster_id}")
 
         blueprint = MonsterBlueprint(monster_id)
-        return Enemy(events,blueprint, position)
+        return Enemy(scene,blueprint, position)
 
 
 class Enemy(Actor):
-    def __init__(self,scene,blueprint,position=5):
+    def __init__(self,scene,blueprint,position=Vec2(1,2)):
         super().__init__(scene,position, health=blueprint.health, sequence_limit=3)
 
         self.name = blueprint.name
@@ -357,7 +369,7 @@ class Enemy(Actor):
             self.strategy = RangedMoveStrategy()
         self.state = AddWeaponState()  # 初始状态为试图添加武器攻击玩家
         self.idle_frames = [load_image(f"arts/sprite/Character/{self.name}.png", (48, 48))]
-        self.attack_frames = [# 临时措施
+        self.attack_frames = [
             load_image(f"arts/sprite/Character/{self.name}.png", (48, 48))
         ]
         self.state_machine.change(IdleState(self))
@@ -457,9 +469,10 @@ class Enemy(Actor):
         #     else:
         #         self.adding = True
     
-    def is_facing_player(self, player):
-        return (self.direction == 1 and player.position > self.position) or \
-            (self.direction == -1 and player.position < self.position)
+    def is_facing_player(self, player):#666
+        # return (self.direction == 1 and player.position > self.position) or \
+        #     (self.direction == -1 and player.position < self.position)
+        return True
     
     def can_hit_player(self, player, scene):#临时的方案
         """检查当前方向 & 攻击模式能否命中玩家"""
@@ -498,25 +511,26 @@ class MoveStrategy:
     def execute(self, enemy, scene):
         raise NotImplementedError
     
-    def needs_move(self, enemy, scene):
-        player = scene.player
-        optimal_range = 1
-        distance = abs(enemy.position - player.position)
-        return distance > optimal_range or not enemy.is_facing_player(scene.player)
+    def needs_move(self, enemy, scene):#666
+        # player = scene.player
+        # optimal_range = 1
+        # distance = abs(enemy.position - player.position)
+        # return distance > optimal_range or not enemy.is_facing_player(scene.player)
+        return True
 
 class MeleeMoveStrategy(MoveStrategy):
     def update(self, enemy, scene):
-        player = scene.player
-        optimal_range = 1
-        distance = abs(enemy.position - player.position)
+        # player = scene.player
+        # optimal_range = 1
+        # distance = abs(enemy.position - player.position)
 
-        if not enemy.is_facing_player(player):
-            enemy.turn_around()
-            return False
+        # if not enemy.is_facing_player(player):
+        #     enemy.turn_around()
+        #     return False
 
-        if distance > optimal_range:
-            enemy.move_forward()
-            return False
+        # if distance > optimal_range:
+        #     enemy.move_forward()
+        #     return False
 
         return True
 
@@ -540,13 +554,13 @@ class RangedMoveStrategy(MoveStrategy):
 
         return False
     
-class MoveState(EnemyState):
+class EMoveState(EnemyState):
     def __init__(self, move_strategy= MeleeMoveStrategy()):
         self.phase = Phase.INTENT
         self.strategy = move_strategy
     def update(self, enemy, scene):
         if self.phase == Phase.INTENT:
-            scene.add_message(f"{enemy.name} intends to move")
+            # scene.add_message(f"{enemy.name} intends to move")
             self.phase = Phase.EXECUTE
             return self
 
@@ -567,12 +581,12 @@ class AddWeaponState(EnemyState):
 
         if finished:
             if enemy.strategy.needs_move(enemy, scene):
-                return MoveState(enemy.strategy)
+                return EMoveState(enemy.strategy)
             else:
                 return EAttackState()
 
         if self.phase == Phase.INTENT:
-            scene.add_message(f"{enemy.name} is preparing weapons")
+            #scene.add_message(f"{enemy.name} is preparing weapons")
             self.phase = Phase.EXECUTE
             return self
 
@@ -591,8 +605,9 @@ class EAttackState(EnemyState):
 
     def update(self, enemy, scene):
         if self.phase == Phase.INTENT:
-            scene.add_message(f"{enemy.name} is about to attack")
-            self.phase = Phase.EXECUTE
+            # scene.add_message(f"{enemy.name} is about to attack")
+            if(scene.can_see(enemy,scene.player)):#看的见玩家再真的攻击
+                self.phase = Phase.EXECUTE
             return self
 
         scene.execute_actions(enemy)
@@ -641,7 +656,7 @@ class SkillLibrary:
 MONSTER_LIBRARY = {
     "DDL":{
         "name": "DDL Fiend",
-        "health": 11,
+        "health": 10,
         "type": "range",
         "weapons": ["DashToDeadline", "Exam"],
         "intents": [
@@ -649,41 +664,41 @@ MONSTER_LIBRARY = {
             ["DashToDeadline", "Exam"]
         ]
     },
-    "GPA" : {
-        "name": "GPA Phantom",
-        "health": 10,
-        "type": "range",
-        "weapons": ["GPA--"],
-        "intents": [
-            ["GPA--"],
-        ]
-    },
-    "BUG":{
-        "name": "BUG",
-        "health": 5,
-        "type": "range",
-        "weapons": ["Stack Overflow", "Compile Error"],
-        "intents": [
-            ["Stack Overflow"],
-            ["Compile Error"]
-        ]
-    },
-    "BUG2":{
-        "name": "BUG",
-        "health": 15,
-        "type": "melee",
-        "weapons": ["Nullptr"],
-        "intents": [
-            ["Nullptr"]
-        ]
-    },
+    # "GPA" : {
+    #     "name": "GPA Phantom",
+    #     "health": 4,
+    #     "type": "range",
+    #     "weapons": ["GPA--"],
+    #     "intents": [
+    #         ["GPA--"],
+    #     ]
+    # },
+    # "BUG":{
+    #     "name": "BUG",
+    #     "health": 5,
+    #     "type": "range",
+    #     "weapons": ["Stack Overflow", "Compile Error"],
+    #     "intents": [
+    #         ["Stack Overflow"],
+    #         ["Compile Error"]
+    #     ]
+    # },
+    # "BUG2":{
+    #     "name": "BUG",
+    #     "health": 8,
+    #     "type": "melee",
+    #     "weapons": ["Nullptr"],
+    #     "intents": [
+    #         ["Nullptr"]
+    #     ]
+    # },
 }
 
 WEAPON_LIBRARY = {
-    "Exam": Weapon("Exam", 10, [1], 0, RED, weapon_type="melee",status_effects=[Status("Anxiety","brain")]),
+    "Exam": Weapon("Exam", 10, [Vec2(1,0)], 0, RED, weapon_type="melee",status_effects=[Status("Anxiety","brain")]),
     "Nullptr": Weapon("Nullptr", 5, [1,2], 0, GREEN, weapon_type="melee",unique_in_sequence=False,status_effects=[Status("Stress", "brain",stack=3)]),
     "GPA--": Weapon("GPA--", 5, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Stress", "brain")]),
-    "DashToDeadline": Weapon("DashToDeadline", 3, [1], 0, RED, weapon_type="dash_to_enemy", range=5,status_effects=[Status("Dizzy","brain")]),
+    "DashToDeadline": Weapon("DashToDeadline", 3, [Vec2(1,0)], 0, RED, weapon_type="dash_to_enemy", range=5,status_effects=[Status("Dizzy","brain")]),
     "Stack Overflow": Weapon("Stack Overflow", 8, [-1,0,1], 0, GREEN, weapon_type="fireball", range=5,status_effects=[Status("Anger", "brain")]),
     "Compile Error": Weapon("Compile Error", 10, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Anxiety","brain")]),
 }

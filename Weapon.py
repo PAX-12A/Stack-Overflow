@@ -1,4 +1,5 @@
 from colors import *
+from grid import Vec2
 class Weapon:
     def __init__(self, name, damage, pattern, cooldown, color,weapon_type="melee",unique_in_sequence=True,range=None,status_effects=None):
         self.name = name
@@ -28,7 +29,7 @@ class Weapon:
 weapon_info = {
     "Hello World": {
         "damage": 3,
-        "pattern": [1],
+        "pattern": [Vec2(1,0)],
         "range": 9,
         "cooldown": 0,
         "color": RED,
@@ -36,8 +37,8 @@ weapon_info = {
         "unique_in_sequence": False
     },
     "Pointer Sword": {
-        "damage": 5,
-        "pattern": [1],
+        "damage": 2,
+        "pattern": [Vec2(1,0)],
         "range": 9,
         "cooldown": 4,
         "color": RED,
@@ -45,16 +46,16 @@ weapon_info = {
         "unique_in_sequence": False
     },
     "Template Greatsword":{
-        "damage": 10,
-        "pattern": [-1, 1],
+        "damage": 5,
+        "pattern": [Vec2(-1,0), Vec2(1,0)],
         "cooldown": 4,
         "color": GREEN,
         "weapon_type": "melee",
         "unique_in_sequence": True
     },
     "Snake Roll":{
-        "damage": 5,
-        "pattern": [1],
+        "damage": 2,
+        "pattern": [Vec2(1,0)],
         "cooldown": 5,
         "color": GREEN,
         "weapon_type": "roll",

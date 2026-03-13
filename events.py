@@ -37,3 +37,15 @@ class AttackAction:
         self.actor = actor
         self.weapon = weapon
         self.damage = damage
+
+class MoveAction:
+    def __init__(self, actor, offset):
+        self.actor = actor
+        self.offset = offset
+
+# 新增一个专用的 PatternAttackAction，跳过武器类型路由
+class PatternAttackAction:
+    def __init__(self, actor, weapon, damage):
+        self.actor = actor
+        self.weapon = weapon
+        self.damage = damage  # 直接存 int

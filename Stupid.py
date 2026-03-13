@@ -13,6 +13,8 @@ pygame.mixer.init()  # 初始化音频系统
 #     pygame.mixer.music.load("assets/music/illusion.mp3")  # 音乐文件路径
 #     pygame.mixer.music.set_volume(0)  # 设置音量（0.0 到 1.0）
 #     pygame.mixer.music.play(-1)  # -1 表示循环播放
+
+
 # except pygame.error as e:
 #     print(f"无法载入背景音乐: {e}")
 
@@ -103,7 +105,7 @@ class MainMenu:
 class GameApp:
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Stupid Game")
+        pygame.display.set_caption("Stack Overflow")
         self.clock = pygame.time.Clock()
 
         self.font_en = get_font("Cogmind", 20)
@@ -148,10 +150,6 @@ class PlayingState(GameState):
 
         toolbar.handle_event(event, scene.player)
         scene.handle_event(event)
-        if event.type == pygame.USEREVENT + 1:
-            if scene.game_state == "enemy_turn":
-                scene.execute_enemy_turn(scene)
-                pygame.time.set_timer(pygame.USEREVENT + 1, 0)
 
     def update(self):
         self.app.toolbar.update(self.app.scene.player)
@@ -171,6 +169,9 @@ class PlayingState(GameState):
             self.app.font_ch,
             self.app.scene.get_player_data()
         )
+
+
+        pygame.display.flip() 
 
 class GameOverState(GameState):
     def __init__(self, app):

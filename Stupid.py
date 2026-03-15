@@ -10,7 +10,8 @@ pygame.init()
 pygame.mixer.init()  # 初始化音频系统
 # 载入背景音乐
 # try:
-#     pygame.mixer.music.load("assets/music/illusion.mp3")  # 音乐文件路径
+#     pygame.mixer.mu
+# ic.load("assets/music/illusion.mp3")  # 音乐文件路径
 #     pygame.mixer.music.set_volume(0)  # 设置音量（0.0 到 1.0）
 #     pygame.mixer.music.play(-1)  # -1 表示循环播放
 
@@ -22,7 +23,7 @@ class MainMenu:
     def __init__(self, font):
         self.font = font
         self.options = ["Start Game", "Help", "Quit"]
-        self.selected = 0
+        self.selected = 0 
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -37,8 +38,8 @@ class MainMenu:
     def draw(self, screen):
         screen.fill(BLACK)
 
-        menu_font = get_font("Patriot",50)
-        title_surface = menu_font.render("Simplicity is all YOU Need", True, WHITE)
+        menu_font = get_font("Patriot",64)
+        title_surface = menu_font.render("Stack OverflOw", True, WHITE)
         title_rect = title_surface.get_rect(center=(SCREEN_WIDTH//2, 100))
         screen.blit(title_surface, title_rect)
 
@@ -47,10 +48,14 @@ class MainMenu:
             if i == self.selected:
                 color = GREEN 
                 pic = f"girl{i+1}"
-                render_ascii_art(screen, label=pic, font_size=16, x=380, y=50, color=WHITE)
+                # render_ascii_art(screen, label=pic, font_size=16, x=380, y=50, color=WHITE)
 
-            image = load_image(f"arts/sprite/{self.options[i]}.png")
+            image = load_image(f"arts/sprite/{self.options[i]}.png"
+            )
             render_1bit_sprite(screen, image, (380, 270 + i*50 - image.get_width()//2), color)
+            icon = load_image(f"arts/stack.png",(128,128))
+            screen.blit(icon,(50,50))
+
             text_surface = self.font.render(option, True, color)
             text_rect = text_surface.get_rect(center=(SCREEN_WIDTH//2, 270 + i*50))
             screen.blit(text_surface, text_rect)
@@ -65,13 +70,16 @@ class MainMenu:
         screen.blit(overlay,((SCREEN_WIDTH-welcome.get_width())//2,100))
 
         intro_text = [
-        "Welcome to the glorious world of S.T.U.P.I.D.",
-        "The game itself is developed by a stupid programmer,",
-        "But the world is created by a non-stupid writer.",
-        "Programming language is your sword",
+        "Welcome to Stack Overflow",
+        "In the game,Programming language is your sword,",
+        
         "and your brain is the shield.",
-        "However,high IQ is not always a good thing.",
-        "Please remember: Simplicity is All You Need.",
+        "Here is a simple tutorial:",
+        "A,D for move ,",
+        "S to end your turn.", 
+        "W to turn around,"
+        "X/Space to execute sequence",
+        "Don't make your brain 'Stack Overflow'.",
         ]
         self.draw_multiline_dialog(screen,intro_text,self.font)
 
@@ -150,6 +158,7 @@ class PlayingState(GameState):
 
         toolbar.handle_event(event, scene.player)
         scene.handle_event(event)
+
 
     def update(self):
         self.app.toolbar.update(self.app.scene.player)

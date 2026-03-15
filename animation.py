@@ -33,12 +33,15 @@ class FrameAnimation:
         self.loop = loop
         self.time = 0
         self.index = 0
+        self.finished = False
 
     def reset(self):
         self.time = 0
         self.index = 0
 
     def update(self, dt):
+        if self.finished:
+            return True
         self.time += dt
         if self.time >= self.speed:
             self.time = 0
@@ -48,7 +51,7 @@ class FrameAnimation:
                 if self.loop:
                     self.index = 0
                 else:
-                    return True  # finished
+                    self.finished = True
 
         return False
 
@@ -58,7 +61,7 @@ class FrameAnimation:
     
 class MoveAnimation:
 
-    def __init__(self, frames , pawn, start_tile, end_tile, duration=0.2):
+    def __init__(self, frames , pawn, start_tile, end_tile, duration=0.1):
 
         self.pawn = pawn
         self.frames = frames
@@ -68,11 +71,15 @@ class MoveAnimation:
 
         self.duration = duration
         self.time = 0
+        self.finished = False
 
     def reset(self):
         self.time = 0
 
     def update(self, dt):
+
+        if self.finished:
+            return True
 
         self.time += dt
 
@@ -85,22 +92,11 @@ class MoveAnimation:
         self.pawn.render_pos = Vec2(x, y)
         # print(self.pawn.render_pos)
 
-        if t >= 1:return True
+
+        if t >= 1:
+            self.finished = True
 
         return False
 
-    # def update(self, dt):
-    #     self.time += dt
-    #     alpha = min(self.time / self.duration, 1)
-
-    #     self.pawn.render_pos = Vec2(                          # ✅ 用 Vec2 分量插值
-    #         self.start.x * (1 - alpha) + self.end.x * alpha,
-    #         self.start.y * (1 - alpha) + self.end.y * alpha
-    #     )
-
-    #     if alpha >= 1:
-    #         self.pawn.position = self.end
-    #         self.pawn.state_machine.change(IdleState(self.pawn))
-    
     def get_frame(self):
         return self.pawn.get_sprite()

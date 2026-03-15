@@ -3,7 +3,7 @@ from events import DamageEvent
 from vfxsystem import SlashVFX
 from grid import Vec2
 
-HIT_FRAME = 2  # 在第几帧触发伤害
+HIT_FRAME = 0  # 在第几帧触发伤害
 
 class StateMachine:
     def __init__(self, owner):
@@ -12,9 +12,6 @@ class StateMachine:
 
     def change(self, new_state):
         
-        # if self.state and type(self.state) == type(new_state):
-        #     return
-        # # print("STATE CHANGE", self.owner.name, type(new_state))
         if self.state:
             self.state.exit() #退出旧状态
 
@@ -54,6 +51,7 @@ class AttackState(State):
         self.attack_positions=attack_positions
         self.damage = damage
         self.hit_done = False
+        self.pawn.attack_completed = False   
 
     def enter(self):
         print(f"{self.pawn.name} Enter Attack State")
@@ -63,51 +61,24 @@ class AttackState(State):
         )
         self.pawn.anim.play(self.anim)
 
-    # def update(self, dt):
-
-    #     finished = self.anim.update(dt)
-
-    #     # 在第3帧造成伤害
-    #     # print(self.anim.index)
-    #     # if self.anim.index >= 0 and not self.hit_done:
-    #     if not self.hit_done:
-
-    #         self.hit_done = True
-    #             #self.apply_weapon_effects(target, weapon)
-    #         for pos in self.attack_positions:
-    #             target = self.pawn.scene.get_pawn_at(pos)
-
-    #             if target:
-    #                 self.pawn.events.push(
-    #                     DamageEvent(self.pawn, target, self.damage)
-    #                 )   
-    #             # self.pawn.vfx.add(
-    #             #     SlashVFX(
-    #             #         self.pawn.slash_frames,
-    #             #         self.pawn.get_cell_center(pos),
-    #             #         self.pawn.direction
-    #             #     )
-    #             # )
-
-    #     if finished:
-    #         print(f"{self.pawn.name} Exit Attack State")
-    #         self.pawn.scene.finish_action()
-    #         self.pawn.state_machine.change(
-    #             IdleState(self.pawn)
-    #         )
     def update(self, dt):
-        finished = self.anim.update(dt)
+        if self.anim.finished:
+            self.pawn.attack_completed = True   
+            self.pawn.state_machine.change(IdleState(self.pawn)) 
 
-        if self.anim.index >= HIT_FRAME and not self.hit_done:  # ✅ 等到指定帧
+        if self.anim.index >= HIT_FRAME and not self.hit_done:  # 等到指定帧
             self.hit_done = True
             for pos in self.attack_positions:
                 target = self.pawn.scene.get_pawn_at(pos)
                 if target:
                     self.pawn.events.push(DamageEvent(self.pawn, target, self.damage))
-
-        if finished:
-            self.pawn.scene.finish_action()
-            self.pawn.state_machine.change(IdleState(self.pawn)) 
+                    self.pawn.vfx.add(
+                    SlashVFX(
+                        self.pawn.slash_frames,
+                        target.render_pos,
+                        self.pawn.direction
+                    )
+                )
 
 class MoveState(State):
 
@@ -121,15 +92,19 @@ class MoveState(State):
         self.new_pos = new_pos
 
     def enter(self):
-        # print(f"{self.pawn.name} Enter Move State")
         self.anim = MoveAnimation(self.pawn.idle_frames, self.pawn, self.old_pos, self.new_pos)
         self.pawn.anim.play(self.anim)
 
     def update(self, dt):
-        # render_pos 的插值由 MoveAnimation 负责，这里只检测完成
-        if self.anim.update(dt):               # 委托给 MoveAnimation
+        if self.anim.finished:
+            self.pawn.move_completed = True        
             self.pawn.position = self.new_pos
-            self.pawn.scene.finish_action()         # ✅ 通知队列推进
+
+            # 落地后检查陷阱
+            trap = self.pawn.scene.mymap.get_trap(self.new_pos)
+            if trap:
+                trap.on_enter(self.pawn)   # ← 陷阱自己决定效果
+
             self.pawn.state_machine.change(IdleState(self.pawn))
 
 

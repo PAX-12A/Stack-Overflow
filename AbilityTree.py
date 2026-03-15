@@ -97,6 +97,7 @@ class SkillPage(Page):
         self.draw_skill_view(screen, player)
 
     def draw_skill_view(self,screen,player):
+        screen.fill(BLACK)
         font = get_font("Cogmind", 16)
         title = font.render("Skills", True, WHITE)
         screen.blit(title, (50, 40))
@@ -136,7 +137,7 @@ class BaseNode:
 
         self.press_start_time = 0
         self.is_pressing = False
-        self.research_time = 1.0  # 默认研究时间（秒）
+        self.research_time = 0.5  # 默认研究时间（秒）
         self.research_type = research_type
         self.is_researched = False
         self.is_researching = False
@@ -479,10 +480,10 @@ class TechTree:
             weapon_surface = f1.render(node.weapon, True, WHITE)
             screen.blit(weapon_surface, (info_x + 15, y_offset))
             y_offset += 18
-            girl_img= load_image("arts/weapon_girl.png", (273,273))
-            screen.blit(girl_img, (750,330))
-            weapon_img= load_image(f"arts/sprite/weapons/{node.weapon}.png",(120,120))
-            screen.blit(weapon_img, (780,450))
+            girl_img= load_image("arts/weapon_girl.png",(128*2,147*2))
+            screen.blit(girl_img, (650,350))
+            weapon_img= load_image(f"arts/sprite/weapons/{node.weapon}.png",(128,128))
+            screen.blit(weapon_img, (870,430))
             
                 
     def handle_event(self, player, event, tree_type):
@@ -608,7 +609,7 @@ lang_levels = {
         ("Pascal", 250, 75, "结构化编程的温柔导师。", ["C"], ["StructuredProgramming"],""),
         # 脚本分支
         ("Python", 550, 125, "你发现缩进也能写出世界。", ["C"], ["Scripting"],"Snake Roll"),
-        ("VisualBasic", 250, 125, "拖一拖，点一点，程序就做好了。", ["C"], ["RapidUI"],""),
+        ("VisualBasic", 250, 125, "拖一拖，点一点，程序就做好了。", ["C"], ["RapidUI"],"DragAndDrop"),
     ],
     3: [
         # 从 C++ 分支
@@ -650,5 +651,6 @@ lang_levels = {
         ("CSS", 100, 300, "网页的美化大师。", ["HTML"], ["WebStyling"],""),
         ("SQL", 400, 350, "数据库的查询语言。", ["Utility"], ["DatabaseQuery"],""),
         ("Bash", 550, 350, "命令行的脚本语言。", ["Utility"], ["ShellScripting"],""),
+        ("R", 550, 300, "数据分析。", ["Utility"], ["Data Science"],"Data Mining"),
     ]
 }

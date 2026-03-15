@@ -2,11 +2,12 @@ import pygame
 import random
 from font_manager import get_font
 from colors import *
-from Weapon import Weapon,weapon_info
+from Weapon import *
 from events import DeathEvent
 from statemachine import *
 from animation import *
 from grid import *
+from move_ability import * 
 
 class Status:
     def __init__(self, name, body_part, duration= 5,is_temp=True, is_illness=False, stack=1, unique=True):
@@ -93,8 +94,8 @@ DISEASE_CONVERSION_TABLE = {
     "wholebody": ["Diabetes", "Chronic Fatigue"],     # 糖尿病、慢性疲劳
 }
 
-class Actor:
-    def __init__(self, scene ,position=Vec2(1,1), health=100, sequence_limit=2):
+class Pawn:
+    def __init__(self, scene , move_ability: MoveAbility ,position=Vec2(1,1), health=100, sequence_limit=2 , ):
         self.position = position
         self.render_pos = Vec2(float(position.x),float(position.y))
         self.direction = 1
@@ -118,6 +119,7 @@ class Actor:
             load_image(f"arts/sprite/slash/slash_{i}.png", (50, 50))
             for i in range(3)
         ]
+        self.move_ability = move_ability
 
     def get_cell_center(self, pos):
         return self.scene.get_cell_center(pos)
@@ -173,7 +175,7 @@ class Actor:
         elif isinstance(self, Enemy):
             scene.enemies.remove(self)  # 移除敌人
         else:
-            print(f"Unknown actor type: {self.name}")
+            print(f"Unknown pawn type: {self.name}")
     
     def update_cooldowns(self):
         for weapon in self.weapons:
@@ -204,14 +206,13 @@ class Actor:
         self.sequence_length = 0
         return executed_actions
     
-    def can_move_to(self, new_pos):
-        return 0 <= new_pos.x <= GRID_WIDTH and 0 <= new_pos.y <= GRID_HEIGHT
+    # def can_move_to(self, new_pos):
+    #     return 0 <= new_pos.x <= GRID_WIDTH and 0 <= new_pos.y <= GRID_HEIGHT
     
     def turn_around(self):
         self.direction *= -1
     
     def move(self, offset):
-        #print(self.position)
         old_pos = self.position
         new_pos = self.position + offset
 
@@ -219,32 +220,36 @@ class Actor:
         if self.on_move_check:
             new_pos = self.on_move_check(self, new_pos)
 
-        #print(new_pos)
-
         if new_pos is None:
             return False
-
+        
+        # self.scene.mymap.vacate(self.position)     # 离开旧格
         self.position = new_pos
+        # self.scene.mymap.occupy(new_pos, self)     # 占用新格
+        
 
         self.state_machine.change(              # 走 state_machine
             MoveState(self, old_pos , new_pos)   # MoveState 内部负责插值和播帧
         )
-        return True
+        return new_pos
     
     def move_forward(self):
-        return self.move(self.direction)
+        return self.move(Vec2(self.direction,0))
     
     def get_sprite(self):
         raise NotImplementedError
+    
+    # def can_move_to(self, pos):
+    #     raise NotImplementedError
 
-class Player(Actor):
+class Player(Pawn):
     def __init__(self,scene,position=Vec2(1,1)):
-        super().__init__(scene,position, health=50, sequence_limit=4)
+        super().__init__(scene,GroundMove(),position, health=50, sequence_limit=4)
         self.name="Player"
         self.weapons = []
         self.skill_points = {
-            "tech": 20,
-            "lang": 5,
+            "tech": 10,
+            "lang": 10,
             "algo": 0,
             "skill":5,
         }
@@ -263,6 +268,8 @@ class Player(Actor):
         self.base_stats = {k: 10 for k in ['S', 'I', 'M', 'P', 'L', 'E']}
 
         self.unlock_weapon("Hello World")  # 初始武器
+        self.unlock_weapon("Goto Jump")  # 初始武器
+        self.unlock_weapon("DEBUG")  # 初始武器
         self.enabled_damage_decorators: set[str] = set() # 启用的伤害装饰器名称集合
         self.idle_frames = [
             load_image(f"arts/sprite/Character/hero-idle{i}.png", (64, 64))
@@ -284,25 +291,24 @@ class Player(Actor):
         """游戏结束的逻辑"""
         print("Ending the game...")
 
-
     def unlock_weapon(self, weapon_name):
-        if weapon_name not in self.weapons:
-            if weapon_name in weapon_info:
-                w = weapon_info[weapon_name]
-                new_weapon = Weapon(
-                    weapon_name,
-                    w["damage"],
-                    w["pattern"],
-                    w["cooldown"],
-                    w["color"],
-                    weapon_type=w["weapon_type"],
-                    unique_in_sequence=w["unique_in_sequence"],
-                    range=w.get("range", None)
-                )
-                self.weapons.append(new_weapon)
-                print(f"已解锁武器：{weapon_name}")
-            else:
-                print(f"武器名 {weapon_name} 不存在于weapon字典中。")
+
+        if weapon_name in self.weapons:
+            return
+
+        if weapon_name not in weapon_info:
+            print(f"武器名 {weapon_name} 不存在")
+            return
+
+        weapon_class = weapon_registry.get(weapon_name, Weapon)
+
+        data = weapon_info[weapon_name]
+
+        new_weapon = weapon_class(weapon_name, data)
+
+        self.weapons.append(new_weapon)
+
+        print(f"已解锁武器：{weapon_name}")
 
     def unlock_skill(self, skill_name: str):
         """解锁技能，并立即应用其效果"""
@@ -325,17 +331,33 @@ class Player(Actor):
     def get_sprite(self):
         return load_image("arts/sprite/Character/hero.png",(64,64))
     
+    
 class MonsterBlueprint:
     def __init__(self, id):
         data= MONSTER_LIBRARY[id]
         self.name = data["name"]
         self.health = data["health"]
         self.weapon_ids = data["weapons"]
+        self.flying = data.get("flying", False) 
         self.intents = data["intents"]
         self.type = data["type"]
 
+    # def create_weapons(self):
+    #     return [WEAPON_LIBRARY[w] for w in self.weapon_ids]
+
     def create_weapons(self):
-        return [WEAPON_LIBRARY[w] for w in self.weapon_ids]
+
+        weapons = []
+
+        for wid in self.weapon_ids:
+
+            weapon_class = weapon_registry[wid]
+
+            weapon = weapon_class(wid,weapon_info[wid])   # 创建实例
+
+            weapons.append(weapon)
+
+        return weapons
     
 class EnemyFactory:
     @staticmethod
@@ -345,15 +367,17 @@ class EnemyFactory:
         # print(f"Spawned Monster: {monster_id}")
 
         blueprint = MonsterBlueprint(monster_id)
-        return Enemy(scene,blueprint, position)
+        move_ability = FlyingMove() if blueprint.flying else GroundMove()  # ← factory 决定
+        return Enemy(scene,blueprint, position,move_ability=move_ability)
 
 
-class Enemy(Actor):
-    def __init__(self,scene,blueprint,position=Vec2(1,2)):
-        super().__init__(scene,position, health=blueprint.health, sequence_limit=3)
+class Enemy(Pawn):
+    def __init__(self,scene,blueprint,position=Vec2(1,2),move_ability=GroundMove()):
+        super().__init__(scene, move_ability,position, health=blueprint.health, sequence_limit=3)
 
         self.name = blueprint.name
         self.type = blueprint.type
+        self.flying = blueprint.flying
 
         # 根据怪物表装载武器
         self.weapons = blueprint.create_weapons()
@@ -414,6 +438,7 @@ class Enemy(Actor):
         # 当前意图完成 → 切换到下一个
         self.intent_progress = 0
         self.intent_index = (self.intent_index + 1) % len(self.intents)
+        # print("enemy intent done.")
         return True
 
     def get_weapon_index(self, weapon_name):
@@ -436,59 +461,30 @@ class Enemy(Actor):
 #     执行 B（EXECUTE）
 
     def ai_take_turn(self, scene):
-
         self.state = self.state.update(self, scene)
-        # player = scene.player
-
-        # if self.waiting:  
-        #     # --- 检查能否命中玩家 ---
-        #     if self.can_hit_player(player, scene):
-        #         # 可以命中 → 保持等待状态，下一回合会攻击
-        #         scene.add_message(f"Enemy is ready to attack")
-        #         # 等待结束后下回合执行攻击
-        #         self.waiting = False  
-        #         self.ready_to_attack=True
-        #     else:
-        #         # --- 不能命中，先调整方向 ---
-        #         if not self.is_facing_player(player):
-        #             self.turn_around()
-        #             # scene.add_message(f"Enemy turn around")
-        #         elif self.moving:#再试图移动（如果已经在之前展示了移动的意图）
-        #             self.move(self.direction)
-        #             self.moving = False
-        #         else: #展示移动的意图
-        #             self.moving = True 
-        #     return
-        # elif self.ready_to_attack :# 之前一回合展示即将攻击            
-        #     scene.execute_actions(self)# 施放攻击
-        #     self.ready_to_attack=False        
-        # else:
-        #     if self.adding:# 展示过即将添加武器的意图                
-        #         # print(self.intents)
-        #         self.execute_intent(scene)# 执行意图  
-        #     else:
-        #         self.adding = True
     
     def is_facing_player(self, player):#666
-        # return (self.direction == 1 and player.position > self.position) or \
-        #     (self.direction == -1 and player.position < self.position)
-        return True
+        if self.direction * (player.position.x-self.position.x) > 0:
+            return True
+        return False
     
     def can_hit_player(self, player, scene):#临时的方案
         """检查当前方向 & 攻击模式能否命中玩家"""
-        if player:
-            distance = abs(self.position - player.position)
-            if self.is_facing_player(player):
-                if self.type == "melee":
-                    return distance <= 1
-                elif self.type == "range":
-                    if scene.can_see(self,player):
-                        print(f"Weapon Range:{self.weapons[0].range}, :{self.weapons[self.action_sequence[0]].range}")
-                        if self.weapons[self.action_sequence[0]].range!=None:
-                            return distance <= self.weapons[self.action_sequence[0]].range
-                        else :
-                            return distance <= 1
-
+        # if player:
+        #     distance = abs(self.position - player.position)
+        #     if self.is_facing_player(player):
+        #         if self.type == "melee":
+        #             return distance <= 1
+        #         elif self.type == "range":
+        #             if scene.can_see_line(self,player):
+        #                 print(f"Weapon Range:{self.weapons[0].range}, :{self.weapons[self.action_sequence[0]].range}")
+        #                 if self.weapons[self.action_sequence[0]].range!=None:
+        #                     return distance <= self.weapons[self.action_sequence[0]].range
+        #                 else :
+        #                     return distance <= 1
+        distance = scene.mdis(player.position,self.position)
+        if(distance<=2):
+            return True
         return False
 
 class EnemyState:
@@ -511,22 +507,19 @@ class MoveStrategy:
     def execute(self, enemy, scene):
         raise NotImplementedError
     
-    def needs_move(self, enemy, scene):#666
-        # player = scene.player
-        # optimal_range = 1
-        # distance = abs(enemy.position - player.position)
-        # return distance > optimal_range or not enemy.is_facing_player(scene.player)
-        return True
+    def needs_move(self, enemy, scene):
+        return not scene.is_facing_player(enemy)
 
 class MeleeMoveStrategy(MoveStrategy):
     def update(self, enemy, scene):
-        # player = scene.player
-        # optimal_range = 1
+        player = scene.player
+        # optimal_range = 2
         # distance = abs(enemy.position - player.position)
 
-        # if not enemy.is_facing_player(player):
-        #     enemy.turn_around()
-        #     return False
+        if not enemy.is_facing_player(player):
+            # print("Enemy Turn Around")
+            enemy.turn_around()
+            return False
 
         # if distance > optimal_range:
         #     enemy.move_forward()
@@ -536,22 +529,10 @@ class MeleeMoveStrategy(MoveStrategy):
 
 
 class RangedMoveStrategy(MoveStrategy):
-
-    def needs_move(self, enemy, scene):
-        return not enemy.is_facing_player(scene.player)
     def update(self, enemy, scene):
-        player = scene.player
-        optimal_range = 10
-        distance = abs(enemy.position - player.position)
-        if not enemy.is_facing_player(player):
+        if not enemy.is_facing_player(scene.player):
             enemy.turn_around()
             return False
-
-        if distance < optimal_range:
-            return True
-        else:
-            enemy.move_forward()
-
         return False
     
 class EMoveState(EnemyState):
@@ -560,11 +541,10 @@ class EMoveState(EnemyState):
         self.strategy = move_strategy
     def update(self, enemy, scene):
         if self.phase == Phase.INTENT:
-            # scene.add_message(f"{enemy.name} intends to move")
             self.phase = Phase.EXECUTE
             return self
 
-        if not self.strategy.needs_move(enemy, scene):
+        if not self.strategy.needs_move(enemy, scene) and enemy.can_hit_player(scene.player, scene): 
             return EAttackState()
         
         self.strategy.update(enemy, scene)
@@ -578,7 +558,6 @@ class AddWeaponState(EnemyState):
         self.phase = Phase.INTENT
     def update(self, enemy, scene):
         finished = enemy.execute_intent(scene)
-
         if finished:
             if enemy.strategy.needs_move(enemy, scene):
                 return EMoveState(enemy.strategy)
@@ -606,7 +585,7 @@ class EAttackState(EnemyState):
     def update(self, enemy, scene):
         if self.phase == Phase.INTENT:
             # scene.add_message(f"{enemy.name} is about to attack")
-            if(scene.can_see(enemy,scene.player)):#看的见玩家再真的攻击
+            if(scene.can_see_line(enemy,scene.player)):#看的见玩家再真的攻击
                 self.phase = Phase.EXECUTE
             return self
 
@@ -656,8 +635,9 @@ class SkillLibrary:
 MONSTER_LIBRARY = {
     "DDL":{
         "name": "DDL Fiend",
-        "health": 10,
+        "health": 5,
         "type": "range",
+        "flying": False,
         "weapons": ["DashToDeadline", "Exam"],
         "intents": [
             ["DashToDeadline"],
@@ -683,22 +663,34 @@ MONSTER_LIBRARY = {
     #         ["Compile Error"]
     #     ]
     # },
-    # "BUG2":{
-    #     "name": "BUG",
-    #     "health": 8,
-    #     "type": "melee",
-    #     "weapons": ["Nullptr"],
-    #     "intents": [
-    #         ["Nullptr"]
-    #     ]
-    # },
+    "BUG2":{
+        "name": "BUG",
+        "health": 8,
+        "type": "melee",
+        "flying": False,
+        "weapons": ["Nullptr"],
+        "intents": [
+            ["Nullptr"]
+        ]
+    },
+
+    "Bat":{
+        "name": "BAT",
+        "health": 2,
+        "type": "melee",
+        "flying": True,
+        "weapons": ["Nullptr"],
+        "intents": [
+            ["Nullptr"]
+        ]
+    },
 }
 
-WEAPON_LIBRARY = {
-    "Exam": Weapon("Exam", 10, [Vec2(1,0)], 0, RED, weapon_type="melee",status_effects=[Status("Anxiety","brain")]),
-    "Nullptr": Weapon("Nullptr", 5, [1,2], 0, GREEN, weapon_type="melee",unique_in_sequence=False,status_effects=[Status("Stress", "brain",stack=3)]),
-    "GPA--": Weapon("GPA--", 5, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Stress", "brain")]),
-    "DashToDeadline": Weapon("DashToDeadline", 3, [Vec2(1,0)], 0, RED, weapon_type="dash_to_enemy", range=5,status_effects=[Status("Dizzy","brain")]),
-    "Stack Overflow": Weapon("Stack Overflow", 8, [-1,0,1], 0, GREEN, weapon_type="fireball", range=5,status_effects=[Status("Anger", "brain")]),
-    "Compile Error": Weapon("Compile Error", 10, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Anxiety","brain")]),
-}
+# WEAPON_LIBRARY = {
+#     "Exam": PatternWeapon("Exam", 10, [Vec2(1,0)], 0,status_effects=[Status("Anxiety","brain")]),
+#     "Nullptr": PatternWeapon("Nullptr", 5, [Vec2(1,0),Vec2(2,0)], 0,unique_in_sequence=False,status_effects=[Status("Stress", "brain",stack=3)]),
+#     # "GPA--": Weapon("GPA--", 5, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Stress", "brain")]),
+#     "DashToDeadline": DashWeapon("DashToDeadline", 3, [Vec2(1,0)], 0,status_effects=[Status("Dizzy","brain")]),
+#     # "Stack Overflow": Weapon("Stack Overflow", 8, [-1,0,1], 0, GREEN, weapon_type="fireball", range=5,status_effects=[Status("Anger", "brain")]),
+#     # "Compile Error": Weapon("Compile Error", 10, [1], 0, RED, weapon_type="ranged", range=9,status_effects=[Status("Anxiety","brain")]),
+# }

@@ -1,0 +1,6 @@
+unused/
+__pycache__/
+assets/music/
+workspace.code-workspace
+.vscode/settings.json
+art/backup/

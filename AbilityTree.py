@@ -1,18 +1,17 @@
 import pygame
-from font_manager import get_font
-from colors import *
+from util import *
 from Stupid import Tab
 import time
 from pages import *
 
 class AbilityPage(PageContainer):
     def __init__(self, get_player_data):
-        super().__init__("Ability", get_player_data, tab_pos=(SCREEN_WIDTH - 250, 50), direction="col")
+        super().__init__("Ability", get_player_data, tab_pos=(SCREEN_WIDTH - 80, 25), direction="col")
         # 注册四个子页面
-        self.register_page(TechPage(get_player_data))
-        self.register_page(LangPage(get_player_data))
-        self.register_page(AlgoPage(get_player_data))
-        self.register_page(SkillPage(get_player_data))
+        self.register_page(TechPage(get_player_data),70,24)
+        self.register_page(LangPage(get_player_data),70,24)
+        self.register_page(AlgoPage(get_player_data),70,24)
+        self.register_page(SkillPage(get_player_data),70,24)
 
 class TechPage(Page):
     def __init__(self, get_player_data):
@@ -40,6 +39,7 @@ class LangPage(Page):
         self.tree.update(player)
 
     def draw(self, screen, font, player):
+        # screen.fill(BLACK)
         # 绘制连接线
         for start_name, end_name in self.tree.connections["lang"]:
             start_node = self.tree.nodes["lang"][start_name]
@@ -59,7 +59,7 @@ class LangPage(Page):
             pygame.draw.line(screen, line_color, start_node.rect.center, end_node.rect.center, line_width)
 
         # 再绘制节点
-        font = get_font("Cogmind", 12)
+        font = get_font("Cogmind", 10)
         for node in self.tree.nodes["lang"].values():
             node.draw(screen, font)
                 # 绘制选中节点的详细信息
@@ -94,9 +94,7 @@ class SkillPage(Page):
         self.tree.update(player)
 
     def draw(self, screen, font, player):
-        self.draw_skill_view(screen, player)
-
-    def draw_skill_view(self,screen,player):
+        screen.fill(BLACK)
         font = get_font("Cogmind", 16)
         title = font.render("Skills", True, WHITE)
         screen.blit(title, (50, 40))
@@ -121,7 +119,7 @@ class SkillPage(Page):
 
 # 科技节点类
 class BaseNode:
-    def __init__(self, name, x, y, description="", prerequisites=None, width=105, height=30, research_type="tech"):
+    def __init__(self, name, x, y, description="", prerequisites=None, width=75, height=15, research_type="tech"):
         self.name = name
         self.description = description
         self.x = x
@@ -136,7 +134,7 @@ class BaseNode:
 
         self.press_start_time = 0
         self.is_pressing = False
-        self.research_time = 1.0  # 默认研究时间（秒）
+        self.research_time = 0.5  # 默认研究时间（秒）
         self.research_type = research_type
         self.is_researched = False
         self.is_researching = False
@@ -303,8 +301,8 @@ class TechTree:
             for ability in abilities:
                 if tree_type == "tech":
                     name, row_pos, desc, prereqs, skills = ability
-                    x = 80 + (level - 1) * 130
-                    y = 80 + int(row_pos * 80)
+                    x = 40 + (level - 1) * 90
+                    y = 40 + int(row_pos * 40)
                     node = TechNode(name, x, y, desc, prereqs, level, skills)
                 elif tree_type == "lang":
                     name, x, y, desc, prereqs, skills,weapon = ability
@@ -333,15 +331,14 @@ class TechTree:
                     self.nodes[tree_type][name].is_unlocked = True
                 
     def draw_tech_tree(self, screen):
-        level_font = get_font("Time", 20)
-        font = get_font("Pixel", 16)
+        font = get_font("Pixel", 12)
         # 绘制等级分隔线和标题
         for level in range(1, 7):
-            x = 80 + (level - 1) * 130
+            x = 40 + (level - 1) * 80
             # 绘制等级标题
             level_title = f"Lv {level}"
-            title_surface = level_font.render(level_title, True, WHITE)
-            title_rect = title_surface.get_rect(center=(x, 40))
+            title_surface = font.render(level_title, True, WHITE)
+            title_rect = title_surface.get_rect(center=(x, 20))
             screen.blit(title_surface, title_rect)
         
         # 绘制连接线
@@ -406,17 +403,17 @@ class TechTree:
        
     def draw_node_info(self, screen):
         node = self.selected_node
-        info_x = 50
-        info_y = 400
-        info_width = SCREEN_WIDTH-100
-        info_height = 200
+        info_x = 25
+        info_y = 200
+        info_width = SCREEN_WIDTH-50
+        info_height = 100
         
         # 信息面板背景
         info_rect = pygame.Rect(info_x, info_y, info_width, info_height)
         pygame.draw.rect(screen, BLACK, info_rect)
-        pygame.draw.rect(screen, WHITE, info_rect, 2)
+        pygame.draw.rect(screen, WHITE, info_rect, 1)
         
-        y_offset = info_y + 15
+        y_offset = info_y + 7
         
         # 状态信息
         if node.is_researched:
@@ -430,32 +427,32 @@ class TechTree:
 
         
         # 节点名称
-        f1=get_font("Pixel", 20)
-        f2=get_font("Cogmind", 16)
+        f1=get_font("Pixel", 12)
+        f2=get_font("Cogmind", 10)
         name_surface = f1.render(node.name, True, WHITE)#要用中文字体
         status_surface = f2.render(status, True, WHITE)#用英文字体，紧跟在name后面
         name_width = name_surface.get_width()
         screen.blit(name_surface, (info_x + 10, y_offset))
         screen.blit(status_surface, (info_x + 10 + name_width + 10, y_offset))
-        y_offset += 30
+        y_offset += 15
         
         # 描述信息
         desc_line_surface = f1.render(node.description, True, WHITE)
         screen.blit(desc_line_surface, (info_x + 10, y_offset))
-        y_offset += 18
+        y_offset += 9
             
         # 前置需求
         if node.prerequisites:
-            y_offset += 10
+            y_offset += 5
             prereq_surface = f1.render("前置需求:", True, WHITE)
             screen.blit(prereq_surface, (info_x + 10, y_offset))
-            y_offset += 18
+            y_offset += 9
             
             for prereq in node.prerequisites:
                 color = WHITE if prereq in self.researched else (200, 150, 150)
                 prereq_surface = f1.render(f"*{prereq}", True, color)
                 screen.blit(prereq_surface, (info_x + 15, y_offset))
-                y_offset += 16
+                y_offset += 8
 
         # 技能
         if node.unlock_skills:
@@ -479,10 +476,10 @@ class TechTree:
             weapon_surface = f1.render(node.weapon, True, WHITE)
             screen.blit(weapon_surface, (info_x + 15, y_offset))
             y_offset += 18
-            girl_img= load_image("arts/weapon_girl.png", (273,273))
-            screen.blit(girl_img, (750,330))
-            weapon_img= load_image(f"arts/sprite/weapons/{node.weapon}.png",(120,120))
-            screen.blit(weapon_img, (780,450))
+            girl_img= load_image("arts/weapon_girl.png",(128,147))
+            screen.blit(girl_img, (325,175))
+            weapon_img= load_image(f"arts/sprite/weapons/{node.weapon}.png",(64,64))
+            screen.blit(weapon_img, (435,215))
             
                 
     def handle_event(self, player, event, tree_type):
@@ -600,55 +597,56 @@ tech_levels = {
 lang_levels = {
     1: [
         # 根节点
-        ("C", 400, 100, "你终于学会了如何向世界说出 Hello, world!", [], ["Hello world"],"Pointer Sword"),
+        ("C", 200, 50, "你终于学会了如何向世界说出 Hello, world!", [], ["Hello world"],"Pointer Sword"),
     ],
     2: [
         # C系分支
-        ("C++", 400, 150, "面向对象的力量开始显现。", ["C"], ["OOP"],"Template Greatsword"),
-        ("Pascal", 250, 75, "结构化编程的温柔导师。", ["C"], ["StructuredProgramming"],""),
+        ("C++", 200, 75, "面向对象的力量开始显现。", ["C"], ["OOP"],"Template Greatsword"),
+        ("Pascal", 125, 38, "结构化编程的温柔导师。", ["C"], ["StructuredProgramming"],""),
         # 脚本分支
-        ("Python", 550, 125, "你发现缩进也能写出世界。", ["C"], ["Scripting"],"Snake Staff"),
-        ("VisualBasic", 250, 125, "拖一拖，点一点，程序就做好了。", ["C"], ["RapidUI"],""),
+        ("Python", 275, 62, "你发现缩进也能写出世界。", ["C"], ["Scripting"],"Snake Roll"),
+        ("VB", 125, 62, "拖一拖，点一点，程序就做好了。", ["C"], ["RapidUI"],"DragAndDrop"),
     ],
     3: [
         # 从 C++ 分支
-        ("Java", 250, 175, "一次编写，到处运行（大概）。", ["C++"], ["JVM"],"JVM Inferno Staff"),
-        ("Rust", 550, 175, "你学会了与内存安全握手。", ["C++"], ["Ownership"],""),
-        ("C#", 400, 200, "微软家的面向对象宠儿。", ["C++"], ["DotNet"],""),
+        ("Java", 125, 87, "一次编写，到处运行（大概）。", ["C++"], ["JVM"],"JVM Inferno Staff"),
+        ("Rust", 275, 87, "你学会了与内存安全握手。", ["C++"], ["Ownership"],""),
+        ("C#", 200, 100, "微软家的面向对象宠儿。", ["C++"], ["DotNet"],""),
         # 从 Pascal 分支
-        ("Delphi", 100, 50, "Pascal 的商业化超进化。", ["Pascal"], ["RAD"],""),
+        ("Delphi", 50, 25, "Pascal 的商业化超进化。", ["Pascal"], ["RAD"],""),
         # 从 Python 分支
-        ("JavaScript", 700, 100, "你开始支配浏览器的世界。", ["Python"], ["WebDev"],""),
-        ("Ruby", 700, 150, "优雅至上的动态语言。", ["Python"], ["ElegantCode"],""),
+        ("JS", 350, 50, "你开始支配浏览器的世界。", ["Python"], ["WebDev"],""),
+        ("Ruby", 350, 75, "优雅至上的动态语言。", ["Python"], ["ElegantCode"],""),
         # 从 VB 分支
-        ("VB.NET", 100, 100, "Visual Basic 的现代续作。", ["Visual Basic"], ["DotNet"],""),
+        ("VB.NET", 50, 50, "Visual Basic 的现代续作。", ["Visual Basic"], ["DotNet"],""),
     ],
     4: [
         # Java 分支
-        ("Kotlin", 250, 225, "Java 的现代化外套。", ["Java"], ["AndroidDev"],""),
+        ("Kotlin", 125, 112, "Java 的现代化外套。", ["Java"], ["AndroidDev"],""),
         # Rust 分支
-        ("Go", 550, 225, "云时代的轻量化编程语言。", ["Rust"], ["Concurrency"],""),
+        ("Go", 275, 112, "云时代的轻量化编程语言。", ["Rust"], ["Concurrency"],""),
         # C# 分支
-        ("F#", 400, 250, "微软的函数式尝试。", ["C#"], ["Functional"],""),
+        ("F#", 200, 125, "微软的函数式尝试。", ["C#"], ["Functional"],""),
         # JS 分支
         # ("TypeScript", 750, 60, "给 JavaScript 穿上类型的铠甲。", ["JavaScript"], ["StrongTyping"]),
         # # Ruby 分支
         # ("Elixir", 750, 120, "分布式与并发的诗人。", ["Ruby"], ["ConcurrentProgramming"]),
         # VB.NET 分支
-        ("ASP.NET", 100, 150, "微软的网页全家桶。", ["VB.NET"], ["WebBackend"],""),
+        ("ASP.NET", 50, 75, "微软的网页全家桶。", ["VB.NET"], ["WebBackend"],""),
     ],
     5: [
-        ("Swift", 400, 50, "苹果生态的第一语言。", ["C"], ["iOSDev"],""),
-        ("PHP", 700, 50, "支撑了一半互联网（真的）。", ["JavaScript"], ["BackendDev"],""),
-        ("Lua", 550, 75, "游戏与嵌入式的脚本大师。", ["C"], ["GameScripting"],""),
+        ("Swift", 200, 25, "苹果生态的第一语言。", ["C"], ["iOSDev"],""),
+        ("PHP", 350, 25, "支撑了一半互联网（真的）。", ["JavaScript"], ["BackendDev"],""),
+        ("Lua", 275, 38, "游戏与嵌入式的脚本大师。", ["C"], ["GameScripting"],""),
     ],
     6: [
-        ("Utility", 400, 300, "你学会了如何用脚本自动化生活。", [], ["Automation"],""),
-        ("Markdown", 100, 350, "你学会了如何用标记语言写文档。", ["Utility"], ["Documentation"],"Text Rain"),
-        ("Latex", 250, 350, "学术论文的排版神器。", ["Utility"], ["AcademicWriting"],"Formula Barrage"),
-        ("HTML", 250, 300, "网页的骨架语言。", ["Utility"], ["WebMarkup"],""),
-        ("CSS", 100, 300, "网页的美化大师。", ["HTML"], ["WebStyling"],""),
-        ("SQL", 400, 350, "数据库的查询语言。", ["Utility"], ["DatabaseQuery"],""),
-        ("Bash", 550, 350, "命令行的脚本语言。", ["Utility"], ["ShellScripting"],""),
+        ("Utility", 200, 150, "你学会了如何用脚本自动化生活。", [], ["Automation"],""),
+        ("Markdown", 100, 175, "你学会了如何用标记语言写文档。", ["Utility"], ["Documentation"],"Text Rain"),
+        ("Latex", 125, 175, "学术论文的排版神器。", ["Utility"], ["AcademicWriting"],"Formula Barrage"),
+        ("HTML", 125, 150, "网页的骨架语言。", ["Utility"], ["WebMarkup"],""),
+        ("CSS", 50, 150, "网页的美化大师。", ["HTML"], ["WebStyling"],""),
+        ("SQL", 200, 175, "数据库的查询语言。", ["Utility"], ["DatabaseQuery"],""),
+        ("Bash", 275, 175, "命令行的脚本语言。", ["Utility"], ["ShellScripting"],""),
+        ("R", 275, 150, "数据分析。", ["Utility"], ["Data Science"],"Data Mining"),
     ]
 }

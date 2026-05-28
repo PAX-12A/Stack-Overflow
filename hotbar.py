@@ -2,6 +2,7 @@
 import pygame
 from pages import Tab, Page
 from util import *
+from commands import SelectWeaponCommand,AddWeaponToSequenceCommand
 
 SLOT_SIZE = 42        # 每格尺寸（比 TAB 稍大）
 SLOT_SPACING = 0
@@ -81,47 +82,62 @@ class WeaponHotbar(Page):
             for i in range(MAX_SLOTS)
         ]
 
-    # 同步武器列表 → 槽位 
-    def _sync_weapons(self, player):
-        for i, slot in enumerate(self.slots):
-            slot.weapon = player.weapons[i] if i < len(player.weapons) else None
+    # # 同步武器列表 → 槽位 
+    # def _sync_weapons(self, player):
+    #     for i, slot in enumerate(self.slots):
+    #         slot.weapon = player.weapons[i] if i < len(player.weapons) else None
 
-    # ── 事件处理 ──────────────────────────────────────────
-    def handle_event(self, event, player):
-        # 数字键 1-9
+    def set_weapons(self, weapons):
+
+        for i, slot in enumerate(self.slots):
+
+            slot.weapon = (
+                weapons[i]
+                if i < len(weapons)
+                else None
+            )
+
+    def handle_event(self, event):
+
+        # 数字键
         if event.type == pygame.KEYDOWN:
-            for i in range(min(9, len(player.weapons))):
+
+            for i in range(MAX_SLOTS):
+
                 if event.key == getattr(pygame, f"K_{i+1}"):
+
                     self.selected_index = i
-                    player.current_weapon_index = i   # 同步到 player
-                    return True
 
-        # 滚轮切换
+                    return AddWeaponToSequenceCommand(i)
+
+        # 滚轮
         if event.type == pygame.MOUSEWHEEL:
-            n = len(player.weapons)
-            if n > 0:
-                self.selected_index = (self.selected_index - event.y) % n
-                player.current_weapon_index = self.selected_index
-            return True
 
-        # 鼠标点击槽位
+            self.selected_index = (
+                self.selected_index - event.y
+            ) % MAX_SLOTS
+
+            return SelectWeaponCommand(
+                self.selected_index
+            )
+
+        # 点击
         if event.type == pygame.MOUSEBUTTONDOWN:
+
             for slot in self.slots:
-                if slot.rect.collidepoint(event.pos) and slot.weapon is not None:
+
+                if slot.rect.collidepoint(event.pos):
+
                     self.selected_index = slot.index
-                    player.current_weapon_index = slot.index
-                    return True
 
-        return False
+                    return SelectWeaponCommand(
+                        slot.index
+                    )
 
-    def update(self, player):
-        self._sync_weapons(player)
-        # 保持 selected_index 与 player 同步（防外部改动）
-        self.selected_index = getattr(player, "current_weapon_index", 0)
+        return None
 
-    def draw(self, screen, font, player=None):
-        if player:
-            self._sync_weapons(player)
-
+    def draw(self, screen, font):
+        # print(self.selected_index)
         for i, slot in enumerate(self.slots):
+            # print(i == self.selected_index)
             slot.draw(screen, font, is_selected=(i == self.selected_index))

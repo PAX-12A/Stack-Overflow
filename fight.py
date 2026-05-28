@@ -10,7 +10,9 @@ from grid import *
 from camera import Camera
 from map import *
 from Action import *
-from hotbar import WeaponHotbar
+from commands import *
+from ui_input import *
+from gameplay_input import *
 
 
 class FightScene:
@@ -59,10 +61,11 @@ class FightScene:
         self.map_width = 16
         self.map_height = 16
 
-        self.hotbar = WeaponHotbar()
+        # self.hotbar = WeaponHotbar()
 
         self.timeline = []
-
+        self.ui_input = UIInputSystem(self)
+        self.gameplay_input = GameplayInputSystem(self)
 
         
     def prepare_level(self):
@@ -243,78 +246,140 @@ class FightScene:
         return new_pos
 
         return None
+    
+    def resolve_actions(self):
 
-    def handle_event(self,event):
-        if self.game_state != "player_turn":
+        consumed = False
+
+        while self.actions:
+
+            action = self.actions.pop()
+
+            action.start(self)
+
+            if action.turn_consumed:
+                consumed = True
+
+        return consumed
+    
+    def execute_ui_command(self, command):
+        if isinstance(command, SelectWeaponCommand):
+            if command.index < len(self.player.weapons):
+
+                self.player.current_weapon_index = (
+                    command.index
+                )
+
+    def handle_event(self, event):
+
+        # if self.game_state != "player_turn": #已包含在gameplay中
+        #     return
+
+        # UI优先
+        if self.ui_input.handle_event(event):
             return
-        self.hotbar.handle_event(event, self.player)
-        if event.type == pygame.KEYDOWN:
-            # === 移动：A / ←（左），D / →（右） ===
-            if event.key in [pygame.K_a, pygame.K_LEFT]:
-                if self.player.move(Vec2(-1,0)):
-                    self.end_player_turn()
-            elif event.key in [pygame.K_d, pygame.K_RIGHT]:
-                if self.player.move(Vec2(1,0)):
-                    self.end_player_turn()
-            elif event.key in [pygame.K_w, pygame.K_UP]:
-                self.player.turn_around()           
-                self.end_player_turn()
-            elif event.key in [pygame.K_s, pygame.K_DOWN]:
-                self.end_player_turn()
-            elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9]:
-                index = event.key - pygame.K_1
-                success, msg = self.player.try_add_weapon_to_sequence(index,self)
-                if success:
-                    self.end_player_turn()
-                # self.add_message(msg) 
-            elif event.key in [pygame.K_x,pygame.K_SPACE]:
-                if self.player.action_sequence:
-                    self.execute_actions(self.player)
-                    self.end_player_turn()
-                else:
-                    self.add_message("Empty Sequence!")
-        elif event.type == pygame.MOUSEBUTTONDOWN:#移动序列的内容
-            mx, my = event.pos
-            for i in range(len(self.player.weapons)):
-                rect2 = self.get_weapon_rect(i)
-                if rect2.collidepoint(mx, my):
-                    success, msg = self.player.try_add_weapon_to_sequence(i,self)
-                    if success:
-                        self.end_player_turn()
-                    self.add_message(msg) 
-            for i, index in enumerate(self.player.action_sequence):
-                # print(event.pos)
-                rect = self.get_sequence_rect(i)
-                if rect.collidepoint(mx, my):
-                    self.dragging_index = i
-                    self.dragging_weapon = index
-                    print(self.dragging_index,self.dragging_weapon)
-                    break
-        elif event.type == pygame.MOUSEBUTTONUP:
 
-            if self.dragging_weapon is not None:
+        # gameplay
+        self.gameplay_input.handle_event(event)
 
-                mx, my = event.pos
+    # def handle_event(self,event):
+    #     if self.game_state != "player_turn":
+    #         return
+    #     self.hotbar.handle_event(event, self.player)
+    #     if event.type == pygame.KEYDOWN:
+    #         # === 移动：A / ←（左），D / →（右） ===
+    #         if event.key in [pygame.K_a, pygame.K_LEFT]:
+    #             # if self.player.move(Vec2(-1,0)):
+    #             #     self.end_player_turn()
 
-                new_index = None
+    #             self.actions.append(
+    #                 MoveAction(
+    #                     self.player,
+    #                     Vec2(-1,0)
+    #                 )
+    #             )
 
-                for i in range(len(self.player.action_sequence)):
+    #             consumed = self.resolve_actions()
 
-                    rect = self.get_sequence_rect(i)
+    #             if consumed:
+    #                 self.end_player_turn()
 
-                    if rect.collidepoint(mx, my):
-                        new_index = i
-                        break
+    #         elif event.key in [pygame.K_d, pygame.K_RIGHT]:
+    #             # if self.player.move(Vec2(1,0)):
+    #             #     self.end_player_turn()
 
-                if new_index is not None:
+    #             self.actions.append(
+    #                 MoveAction(
+    #                     self.player,
+    #                     Vec2(1,0)
+    #                 )
+    #             )
 
-                    seq = self.player.action_sequence
+    #             consumed = self.resolve_actions()
 
-                    weapon = seq.pop(self.dragging_index)
-                    seq.insert(new_index, weapon)
+    #             if consumed:
+    #                 self.end_player_turn()
 
-                self.dragging_weapon = None
-                self.dragging_index = None
+    #         elif event.key in [pygame.K_w, pygame.K_UP]:
+    #             self.player.turn_around()           
+    #             self.end_player_turn()
+    #         elif event.key in [pygame.K_s, pygame.K_DOWN]:
+    #             self.end_player_turn()
+    #         elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9]:
+    #             index = event.key - pygame.K_1
+    #             success, msg = self.player.try_add_weapon_to_sequence(index,self)
+    #             if success:
+    #                 self.end_player_turn()
+    #             # self.add_message(msg) 
+    #         elif event.key in [pygame.K_x,pygame.K_SPACE]:
+    #             if self.player.action_sequence:
+    #                 self.execute_actions(self.player)
+    #                 self.end_player_turn()
+    #             else:
+    #                 self.add_message("Empty Sequence!")
+
+    #     elif event.type == pygame.MOUSEBUTTONDOWN:#移动序列的内容
+    #         mx, my = event.pos
+    #         for i in range(len(self.player.weapons)):
+    #             rect2 = self.get_weapon_rect(i)
+    #             if rect2.collidepoint(mx, my):
+    #                 success, msg = self.player.try_add_weapon_to_sequence(i,self)
+    #                 if success:
+    #                     self.end_player_turn()
+    #                 self.add_message(msg) 
+    #         for i, index in enumerate(self.player.action_sequence):
+    #             # print(event.pos)
+    #             rect = self.get_sequence_rect(i)
+    #             if rect.collidepoint(mx, my):
+    #                 self.dragging_index = i
+    #                 self.dragging_weapon = index
+    #                 print(self.dragging_index,self.dragging_weapon)
+    #                 break
+    #     elif event.type == pygame.MOUSEBUTTONUP:
+
+    #         if self.dragging_weapon is not None:
+
+    #             mx, my = event.pos
+
+    #             new_index = None
+
+    #             for i in range(len(self.player.action_sequence)):
+
+    #                 rect = self.get_sequence_rect(i)
+
+    #                 if rect.collidepoint(mx, my):
+    #                     new_index = i
+    #                     break
+
+    #             if new_index is not None:
+
+    #                 seq = self.player.action_sequence
+
+    #                 weapon = seq.pop(self.dragging_index)
+    #                 seq.insert(new_index, weapon)
+
+    #             self.dragging_weapon = None
+    #             self.dragging_index = None
 
     def print_executed_actions(self,executed_actions):
         if not executed_actions:
@@ -472,6 +537,7 @@ class FightScene:
         self.game_state = "enemy_turn"
         if not self.mymap.is_walkable(self.player.position):
             self.fall()
+        # print(self.player.position) #666
 
         if self.mymap.get_terrain(self.player.position) == 3:
             self.level += 1
@@ -693,7 +759,8 @@ class FightScene:
         #     screen.blit(weapon_text, (5, weapon_y + i * 20))
         #     weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png", (16, 16))
         #     render_1bit_sprite(screen, weapon_image, (20, weapon_y + i * 20 - 3 ), color)
-        self.hotbar.draw(screen, self.font, self.player)
+        self.ui_input.hotbar.draw(screen, self.font)
+        self.ui_input.hotbar.set_weapons(self.player.weapons)
 
 
             # 绘制动作序列
@@ -797,7 +864,7 @@ class FightScene:
         for enemy in self.enemies:
             enemy.anim.update(dt)
 
-        self.hotbar.update(self.player)
+        self.ui_input.update()
 
     def _enemy_turn_ready(self):
         """所有敌人的动画都播完了才返回 True"""

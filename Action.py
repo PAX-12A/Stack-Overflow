@@ -2,8 +2,9 @@ from grid import Vec2
 from statemachine import *
 class Action:
 
-    def __init__(self, actor):
+    def __init__(self, actor ,turn_consumed = False):
         self.actor = actor
+        self.turn_consumed = turn_consumed #是否花费玩家回合
 
     def start(self, scene):
         pass
@@ -13,6 +14,8 @@ class Action:
 
     def is_finished(self):
         return True
+
+
 
 # class MoveAction(Action):
 
@@ -65,11 +68,20 @@ class Action:
 #     def is_finished(self):
 #         return self.finished
 
+class WaitAction(Action):
+    def __init__(self, actor):
+        super().__init__(actor,turn_consumed=True)
+    def start(self, scene):
+        print("waiting")
+        return
+        
+
+
 class MoveAction(Action):
 
     def __init__(self, actor, offset):
 
-        super().__init__(actor)
+        super().__init__(actor,turn_consumed=True)
 
         self.offset = offset
         self.finished = False
@@ -79,7 +91,15 @@ class MoveAction(Action):
         old_pos = self.actor.position
         new_pos = old_pos + self.offset
 
-        self.actor.move(self.offset) #逻辑移动
+
+        result = self.actor.move(self.offset) # 逻辑移动
+
+        if result is None:
+
+            self.turn_consumed = False
+            self.finished = True
+
+            return
 
         # Timeline
         step = TimelineStep(
@@ -275,3 +295,4 @@ class TimelineStep:
 
             "duration": self.duration
         }
+

@@ -10,6 +10,7 @@ pygame.init()
 pygame.mixer.init()  # 初始化音频系统
 # 载入背景音乐
 # try:
+
 #     pygame.mixer.mu
 # ic.load("assets/music/illusion.mp3")  # 音乐文件路径
 #     pygame.mixer.music.set_volume(0)  # 设置音量（0.0 到 1.0）

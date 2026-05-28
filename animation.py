@@ -1,5 +1,4 @@
-import pygame
-from colors import *
+from util import *
 from grid import Vec2
 from statemachine import *
 

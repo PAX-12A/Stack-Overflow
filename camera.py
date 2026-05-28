@@ -1,12 +1,12 @@
 import pygame
-from colors import *
+from util import *
 from grid import Vec2
 
 
 class Camera:
 
     def __init__(self):
-        # 地图像素大小
+        # 
         self.map_pixel_width = GRID_WIDTH * CELL_WIDTH
         self.map_pixel_height = GRID_HEIGHT * CELL_HEIGHT
 

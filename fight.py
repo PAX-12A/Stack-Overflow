@@ -1,7 +1,6 @@
 import pygame
 import random
-from font_manager import get_font
-from colors import *
+from util import *
 from Charactor import *
 from Damage import *
 from events import *
@@ -11,6 +10,7 @@ from grid import *
 from camera import Camera
 from map import *
 from Action import *
+from hotbar import WeaponHotbar
 
 
 class FightScene:
@@ -32,12 +32,12 @@ class FightScene:
         self.vfx = VFXSystem(self.camera)
 
         self.icons = [
-            load_image("arts/sprite/sand.png",(64,64)),
-            load_image("arts/sprite/Level.png",(64,64)),
+            load_image("arts/sprite/sand.png",(32,32)),
+            load_image("arts/sprite/Level.png",(32,32)),
         ]
         
         # 生成一个随机关卡
-        self.player = Player(self, Vec2(8, 8))
+        self.player = Player(self, Vec2(8, 1))
         self.prepare_level()
         # print(self.player.position)
 
@@ -45,8 +45,8 @@ class FightScene:
         self.win=False   
 
         # 字体
-        self.font = get_font("Cogmind",20)
-        self.small_font = get_font("DOS",20)
+        self.font = get_font("Cogmind",10)
+        self.small_font = get_font("DOS",16)
         self.large_font = get_font("Cogmind",16)
 
         #sequence拖动处理
@@ -59,6 +59,10 @@ class FightScene:
         self.map_width = 16
         self.map_height = 16
 
+        self.hotbar = WeaponHotbar()
+
+        self.timeline = []
+
 
         
     def prepare_level(self):
@@ -67,43 +71,13 @@ class FightScene:
 
         self.enemies = []
 
-        pos = self.get_random_spawn_pos()
-        print(pos)
-        self.player.position = pos
-        self.player.render_pos = Vec2(float(pos.x), float(pos.y))
-        self.mymap.occupy(pos, self.player)   # ← player 也登记
+        self.player.position = Vec2(8, 1)
+        self.player.render_pos = Vec2(8.0, 1.0)
+        # self.mymap.occupy(Vec2(0, 8), self.player)   # ← player 也登记
 
         self.spawn_enemy()
 
         self.actions = deque()
-
-    # def generate_map(self):
-
-    #     self.map_data = []
-
-    #     for y in range(GRID_HEIGHT):
-
-    #         row = []
-
-    #         for x in range(GRID_WIDTH):
-
-    #             # 边缘生成墙
-    #             if x == 0 or y == 0 or x == GRID_WIDTH-1 or y == GRID_HEIGHT-1:
-    #                 tile = 1
-
-    #             else:
-    #                 r = random.random()
-
-    #                 if r < 0.8:
-    #                     tile = 0      # 空地
-    #                     if r < 0.2:
-    #                         tile = row[-1] if x > 1 else 0
-    #                 else:
-    #                     tile = 2     # 地板
-    #             row.append(tile)
-
-    #         self.map_data.append(row)
-    #     self.map_data[GRID_HEIGHT-2][8]=3 #出口
 
     def get_player_data(self):
         return {
@@ -273,7 +247,7 @@ class FightScene:
     def handle_event(self,event):
         if self.game_state != "player_turn":
             return
-        
+        self.hotbar.handle_event(event, self.player)
         if event.type == pygame.KEYDOWN:
             # === 移动：A / ←（左），D / →（右） ===
             if event.key in [pygame.K_a, pygame.K_LEFT]:
@@ -316,9 +290,6 @@ class FightScene:
                     self.dragging_weapon = index
                     print(self.dragging_index,self.dragging_weapon)
                     break
-
-
-
         elif event.type == pygame.MOUSEBUTTONUP:
 
             if self.dragging_weapon is not None:
@@ -491,6 +462,11 @@ class FightScene:
     
     def fall(self):
         self.actions.append(GravityAction(self.player))
+
+    def save_timeline(self):
+            data = [step.to_dict() for step in self.timeline]
+            with open("timeline.json", "w") as f:
+                json.dump(data, f, indent=4)
     
     def end_player_turn(self):
         self.game_state = "enemy_turn"
@@ -517,6 +493,10 @@ class FightScene:
         self.turn_count += 1
 
         self.player.update_statuses()#更新状态
+        # print(self.player.old_pos)
+
+        # self.player.build_turn_ghost(self.player.old_pos, self.player.position)
+        # self.player.old_pos = self.player.position
 
         # if(self.actions):
         #     for act in self.actions:
@@ -526,28 +506,43 @@ class FightScene:
         # 执行敌人回合
         # pygame.time.set_timer(pygame.USEREVENT + 1, 100)  # 0.1秒后执行敌人回合
 
+        self.save_timeline()
+
     def end_enemy_turn(self):
         for enemy in self.enemies:
             enemy.update_cooldowns()
 
-        gravity_actions = [
-            GravityAction(enemy) for enemy in self.enemies
-            if not enemy.flying
-        ]
+        gravity_actions = []
+        #     GravityAction(enemy) for enemy in self.enemies
+        #     if not enemy.flying and self.mymap.is_walkable(enemy.position)
+        # ]
 
-        if gravity_actions:  # 避免 ParallelAction 包空列表
-            self.actions.append(ParallelAction(gravity_actions))
+        # for enemy in self.enemies:
+        #     if not enemy.flying:
+        #         if not self.mymap.is_walkable(enemy.position):
+        #             gravity_actions.append(GravityAction(enemy))
+
+        # if gravity_actions:  # 避免 ParallelAction 包空列表
+        #     self.actions.append(ParallelAction(gravity_actions))
+
+        for enemy in self.enemies:
+            if not enemy.flying:
+                if not self.mymap.is_walkable(enemy.position):
+                    self.actions.append(GravityAction(enemy))
 
         if self.game_state != "game_over":
             self.game_state = "player_turn"
                     
         # # 执行敌人回合
         # pygame.time.set_timer(pygame.USEREVENT + 1, 100)  # 0.1秒后执行玩家回合
+
+
     
     def execute_enemy_turn(self,scene):
         for enemy in self.enemies:
             enemy.ai_take_turn(scene)
-            self.end_enemy_turn()
+
+        self.end_enemy_turn()
         
         # 设置新的攻击意图
         if self.game_state != "game_over":
@@ -559,28 +554,23 @@ class FightScene:
         # 绘制敌人
         for enemy in self.enemies:            
             # 绘制敌人血量
-            health_ratio = enemy.health / enemy.max_health
-            health_width = 40
+
 
             screen_pos = self.camera.apply(enemy.render_pos)
+            # health_ratio = enemy.health / enemy.max_health
+            # health_width = 20
+            # pygame.draw.rect(screen,SHADOW, (health_x,health_y, health_width, 3))
+            # pygame.draw.rect(screen, WHITE, (health_x,health_y, int(health_width * health_ratio), 3))
             health_x = screen_pos[0]
             health_y = screen_pos[1]
-            pygame.draw.rect(screen,SHADOW, (health_x,health_y, health_width, 6))
-            pygame.draw.rect(screen, WHITE, (health_x,health_y, int(health_width * health_ratio), 6))
-            hp_text = self.small_font.render(str(enemy.health), True, GREEN)
+            hp_text = self.font.render(str(enemy.health), True, GREEN)
 
             screen.blit(hp_text,(health_x,health_y))
 
             self.draw_pawns(screen, enemy)
 
     def draw_pawns(self, screen , pawn):
-        arrow_font = get_font("DOS",24)
         character = pawn.anim.get_frame()
-
-        if isinstance(pawn, Enemy) and (pawn.state.phase == Phase.EXECUTE and pawn.state.__class__.__name__ == "MoveState"):
-            arrow_color = GREEN
-        else:
-            arrow_color = GRAY
             
         # 根据方向翻转
         if pawn.direction == 1:  # 朝右
@@ -588,8 +578,14 @@ class FightScene:
         else:  # 朝左
             draw_img = pygame.transform.flip(character, True, False)
 
+        for g in pawn.turn_ghosts:
+            draw_img.set_alpha(g["alpha"])
+            screen.blit(draw_img,self.camera.apply(g["pos"]))
+            
+
         screen_pos=self.camera.apply(pawn.render_pos)
 
+        draw_img.set_alpha(255)#本体
         screen.blit(draw_img,screen_pos)
 
         if isinstance(pawn, Player):
@@ -606,8 +602,8 @@ class FightScene:
         self.draw_intents(screen, pawn, pos)
 
     def draw_intents(self, screen, pawn, pos):
-        intent_x = pos[0] 
-        intent_y = pos[1] - 90
+        intent_x = pos[0] + 10
+        intent_y = pos[1] - 20
 
         mouse_pos = pygame.mouse.get_pos()
         hovered_weapon = None  # 当前悬停的武器
@@ -615,26 +611,25 @@ class FightScene:
 
         for index in pawn.action_sequence:
             weapon = pawn.weapons[index]
-            weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png",(48,48))
+            weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png",(16,16))
 
             # 绘制图标
             rect = weapon_image.get_rect(topleft=(intent_x, intent_y))
             render_1bit_sprite(screen, weapon_image, rect.topleft, weapon_color)
-            font = get_font("DOS", 16)
-            screen.blit(font.render(f"{weapon.damage}", True, WHITE), (intent_x , intent_y + 30))#左下角为伤害
+            screen.blit(self.font.render(f"{weapon.damage}", True, WHITE), (intent_x - 10 , intent_y))#左下角为伤害
 
             # 如果鼠标悬停在这个图标上
             if rect.collidepoint(mouse_pos):
                 hovered_weapon = weapon
 
-            intent_y -= 48  # 间距调整
+            intent_y -= 16  # 间距调整
 
         for symbol in pawn.state.get_intent_symbols(pawn):
             if symbol == "!":
                 name = "Warning"
             elif symbol == "+":
                 name = "Adding"
-            symbol_image = load_image(f"arts/sprite/weapons/{name}.png", (48, 48))
+            symbol_image = load_image(f"arts/sprite/weapons/{name}.png", (16, 16))
             render_1bit_sprite(screen, symbol_image, (intent_x, intent_y), weapon_color)
             intent_y -= 48
 
@@ -669,11 +664,7 @@ class FightScene:
 
         # 文本
         for i, line in enumerate(lines):
-            if i==0:
-                font = get_font("Cogmind", 16)
-            else:
-                font = self.small_font
-            text_surface = font.render(line, True, WHITE)
+            text_surface = self.font.render(line, True, WHITE)
             screen.blit(text_surface, (rect.x + padding, rect.y + padding + i * 18))
 
     def draw_ui(self,screen):
@@ -681,32 +672,34 @@ class FightScene:
         max_bar_length = 10  
         filled = int(self.player.health / self.player.max_health * max_bar_length)
         bar_str = "#" * filled + "." * (max_bar_length - filled)
-        health_text = self.small_font.render(f"HP: {bar_str}({self.player.health}/{self.player.max_health})", True, WHITE)
+        health_text = self.font.render(f"HP: {bar_str}({self.player.health}/{self.player.max_health})", True, WHITE)
         screen.blit(health_text, (30, SCREEN_HEIGHT-80))
         
         # 绘制回合数
-        screen.blit(self.icons[0], (SCREEN_WIDTH- 100, 20))
-        turn_text = self.small_font.render(f"{self.turn_count}", True, GREEN)
-        screen.blit(turn_text, (SCREEN_WIDTH- 60, 60))
-        screen.blit(self.icons[1], (SCREEN_WIDTH- 164, 20))
-        level_text = self.small_font.render(f"{self.level}", True, GREEN)
-        screen.blit(level_text, (SCREEN_WIDTH- 60 - 64, 60))
+        screen.blit(self.icons[0], (SCREEN_WIDTH- 50, 10))
+        turn_text = self.font.render(f"{self.turn_count}", True, GREEN)
+        screen.blit(turn_text, (SCREEN_WIDTH- 30, 30))
+        screen.blit(self.icons[1], (SCREEN_WIDTH- 82, 10))
+        level_text = self.font.render(f"{self.level}", True, GREEN)
+        screen.blit(level_text, (SCREEN_WIDTH- 30 - 32, 30))
         
         # 绘制武器状态
         weapon_y = 10
-        for i, weapon in enumerate(self.player.weapons):
-            color = GREEN if weapon.is_ready() else RED
-            cooldown_text = f"{weapon.damage},{weapon.current_cooldown}" if not weapon.is_ready() else f"{weapon.damage},Ready"
+        # for i, weapon in enumerate(self.player.weapons):
+        #     color = GREEN if weapon.is_ready() else RED
+        #     cooldown_text = f"{weapon.damage},{weapon.current_cooldown}" if not weapon.is_ready() else f"{weapon.damage},Ready"
             
-            weapon_text = self.small_font.render(f"{i+1}.     {weapon.name} ({cooldown_text})", True, color)
-            screen.blit(weapon_text, (10, weapon_y + i * 40))
-            weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png", (32, 32))
-            render_1bit_sprite(screen, weapon_image, (40, weapon_y + i * 40 - 10 ), color)
-        
-        # 绘制动作序列
+        #     weapon_text = self.font.render(f"{i+1}.  {weapon.name} ({cooldown_text})", True, color)
+        #     screen.blit(weapon_text, (5, weapon_y + i * 20))
+        #     weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png", (16, 16))
+        #     render_1bit_sprite(screen, weapon_image, (20, weapon_y + i * 20 - 3 ), color)
+        self.hotbar.draw(screen, self.font, self.player)
+
+
+            # 绘制动作序列
         if self.player.action_sequence:
             seq_text = self.font.render("Sequence:", True, WHITE)
-            screen.blit(seq_text, (20, 400))
+            screen.blit(seq_text, (10, 200))
             
             for i, index in enumerate(self.player.action_sequence):
                 if i == self.dragging_index:#不画选中的
@@ -714,7 +707,7 @@ class FightScene:
                 weapon_name = self.player.weapons[index].name
                 # action_text = self.small_font.render(f"- {weapon_name}", True, GREEN)
                 # screen.blit(action_text, (30, 430 + i * 25))
-                weapon_image = load_image(f"arts/sprite/weapons/{weapon_name}.png",(48,48))
+                weapon_image = load_image(f"arts/sprite/weapons/{weapon_name}.png",(32,32))
                 rect = self.get_sequence_rect(i)
                 render_1bit_sprite(screen, weapon_image, rect.topleft, GREEN)
                 # print(f"INDEX:{self.dragging_weapon}")
@@ -725,16 +718,16 @@ class FightScene:
 
                     weapon_image = load_image(
                         f"arts/sprite/weapons/{weapon_name}.png",
-                        (48,48)
+                        (32,32)
                     )
 
                     render_1bit_sprite(screen, weapon_image, (pygame.mouse.get_pos()), GREEN)
 
     def get_sequence_rect(self, i):
-        return pygame.Rect(10 + i * 64, 430, 48, 48)
+        return pygame.Rect(5 + i * 32, 215, 24, 24)
     
     def get_weapon_rect(self, i):
-        return pygame.Rect(40, i * 40 - 10 , 48, 48)
+        return pygame.Rect(20, i * 20 - 5 , 24, 24)
         
     def draw_messages(self, screen, font, pos=(SCREEN_WIDTH-500, 500)):
         now = pygame.time.get_ticks()
@@ -765,46 +758,6 @@ class FightScene:
         for msg in to_remove:
             self.messages.remove(msg)    
 
-    # def update(self):
-
-    #     # 1. 如果是敌人回合且没有正在执行的动作和动画，才执行敌人逻辑
-    #     if self.game_state == "enemy_turn":
-    #         if not self.current_action and not self.actions:
-    #             if self._enemy_turn_ready():        # ✅ 所有敌人动画都结束了
-    #                 self.execute_enemy_turn(self)
-
-    #     # print(self.actions)
-    #     # if self.current_action :
-    #     #     print(self.current_action.weapon)
-    #     # self.current_action=None
-
-    #     # 1. ActionQueue
-    #     dt = 1/60
-
-    #     if not self.current_action and self.actions:
-    #         self.current_action = self.actions.popleft()
-    #         self.start_action(self.current_action)
-
-    #     # 2. StateMachine
-    #     for enemy in self.enemies:
-    #         enemy.state_machine.update(0.1)
-
-    #     self.player.state_machine.update(0.1)
-
-    #     # 3. EventQueue
-    #     self.process_events()
-
-    #     # 4. VFX
-    #     self.vfx.update(0.1)
-
-    #     # 5. Camera
-    #     self.camera.update(self.player)
-
-    #     self.player.anim.update(dt)
-    #     for enemy in self.enemies:
-    #         enemy.anim.update(dt)
-# FightScene.update() 里加入回合驱动
-
     def update_actionqueue(self, dt):
 
         if not self.current_action and self.actions:
@@ -827,12 +780,6 @@ class FightScene:
                 self._enemy_turn_ready()        # tmp
                 self.execute_enemy_turn(self)
 
-        # 2. ActionQueue
-        # if not self.current_action and self.actions:
-        #     self.current_action = self.actions.popleft()
-        #     self.current_action.start(self)
-
-
         # 统一 dt
         dt = 1/60
 
@@ -849,6 +796,8 @@ class FightScene:
         self.player.anim.update(dt)
         for enemy in self.enemies:
             enemy.anim.update(dt)
+
+        self.hotbar.update(self.player)
 
     def _enemy_turn_ready(self):
         """所有敌人的动画都播完了才返回 True"""
@@ -948,9 +897,9 @@ class FightScene:
             end_text = self.large_font.render("Congratulations!", True, GREEN)
         else:
             end_text = self.font.render("You Failed!", True, RED)
-            render_ascii_art(screen, label="grave",x=100, y=200, font_size=24, color=WHITE)
-            character = load_image('arts/grave.png')
-            screen.blit(character, (800, 50))
+            render_ascii_art(screen, label="grave",x=10, y=20, font_size=12, color=WHITE)
+            character = load_image('arts/grave.png',(121,294))
+            screen.blit(character, (400, 25))
         
         end_rect = end_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2+200))
         screen.blit(end_text, end_rect)

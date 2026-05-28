@@ -1,7 +1,7 @@
 import pygame
 import sys
 from fight import *
-from colors import *
+from util import *
 from pages import *
 
 # 初始化pygame
@@ -22,7 +22,7 @@ pygame.mixer.init()  # 初始化音频系统
 class MainMenu:
     def __init__(self, font):
         self.font = font
-        self.options = ["Start Game", "Help", "Quit"]
+        self.options = ["Start", "Help", "Quit"]
         self.selected = 0 
 
     def handle_event(self, event):
@@ -33,14 +33,16 @@ class MainMenu:
                 self.selected = (self.selected + 1) % len(self.options)
             elif event.key == pygame.K_RETURN:
                 return self.options[self.selected]
+            
         return None
 
     def draw(self, screen):
         screen.fill(BLACK)
 
-        menu_font = get_font("Patriot",64)
+        menu_font = get_font("Patriot",32)
+        opt_font = get_font("Cogmind",20)
         title_surface = menu_font.render("Stack OverflOw", True, WHITE)
-        title_rect = title_surface.get_rect(center=(SCREEN_WIDTH//2, 100))
+        title_rect = title_surface.get_rect(center=(SCREEN_WIDTH//2, 50))
         screen.blit(title_surface, title_rect)
 
         for i, option in enumerate(self.options):
@@ -48,22 +50,21 @@ class MainMenu:
             if i == self.selected:
                 color = GREEN 
                 pic = f"girl{i+1}"
-                # render_ascii_art(screen, label=pic, font_size=16, x=380, y=50, color=WHITE)
+                render_ascii_art(screen, label=pic, font_size=16, x=150, y=-70, color=WHITE)
 
-            image = load_image(f"arts/sprite/{self.options[i]}.png"
-            )
-            render_1bit_sprite(screen, image, (380, 270 + i*50 - image.get_width()//2), color)
-            icon = load_image(f"arts/stack.png",(128,128))
-            screen.blit(icon,(50,50))
+            image = load_image(f"arts/sprite/{self.options[i]}.png",(32,32))
+            render_1bit_sprite(screen, image, (190, 135 + i*50 - image.get_width()//2), color)
+            icon = load_image(f"arts/stack.png",(64,64))
+            screen.blit(icon,(25,25))
 
-            text_surface = self.font.render(option, True, color)
-            text_rect = text_surface.get_rect(center=(SCREEN_WIDTH//2, 270 + i*50))
+            text_surface = opt_font.render(option, True, color)
+            text_rect = text_surface.get_rect(center=(SCREEN_WIDTH//2, 140 + i*50))
             screen.blit(text_surface, text_rect)
             
 
     def intro(self,screen):
         screen.fill(BLACK)
-        welcome = load_image(f"arts/terminal of life.png",(1024,512))
+        welcome = load_image(f"arts/terminal of life.png")
         screen.blit(welcome,((SCREEN_WIDTH-welcome.get_width())//2,100))
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)).convert_alpha()
         overlay.fill((0, 0, 0, 180))
@@ -88,12 +89,12 @@ class MainMenu:
         screen.blit(rendered, (x, y))
 
     # 像视觉小说一样显示文字
-    def draw_multiline_dialog(self,screen, text_lines, font ,start_y=80, color=WHITE, line_spacing=40):
+    def draw_multiline_dialog(self,screen, text_lines, font ,start_y=40, color=WHITE, line_spacing=20):
         
-        self.draw_text(screen,"Press ENTER to continue...", 50, SCREEN_HEIGHT - 60,font,GREEN)
+        self.draw_text(screen,"Press ENTER to continue...", 20, SCREEN_HEIGHT - 30,font,GREEN)
 
         line_index = 0
-        self.draw_text(screen,text_lines[line_index], 50, start_y + line_index * line_spacing, font,color)
+        self.draw_text(screen,text_lines[line_index], 40, start_y + line_index * line_spacing, font,color)
         line_index += 1
 
         pygame.display.flip()
@@ -110,14 +111,19 @@ class MainMenu:
                         pygame.display.flip()
                     else:
                         waiting = False
+
 class GameApp:
     def __init__(self):
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT),pygame.RESIZABLE)
+        self.base_size = (SCREEN_WIDTH, SCREEN_HEIGHT)  # 你的设计分辨率
+        self.virtual_surface = pygame.Surface(self.base_size)
+        self.window_size = self.screen.get_size()
+
         pygame.display.set_caption("Stack Overflow")
         self.clock = pygame.time.Clock()
 
-        self.font_en = get_font("Cogmind", 20)
-        self.font_ch = get_font("Pixel", 20)
+        self.font_en = get_font("Cogmind", 10)
+        self.font_ch = get_font("Pixel", 10)
 
         self.menu = MainMenu(self.font_en)
         self.scene = FightScene()
@@ -127,6 +133,7 @@ class GameApp:
         self.state = MenuState(self)
 
         self.running = True
+        is_fullscreen = False
 
 class GameState:
     def handle_event(self, event): pass
@@ -139,14 +146,14 @@ class MenuState(GameState):
 
     def handle_event(self, event):
         choice = self.app.menu.handle_event(event)
-        if choice == "Start Game":
+        if choice == "Start":
             self.app.menu.intro(self.app.screen)
             self.app.state = PlayingState(self.app)
         elif choice == "Quit":
             self.app.running = False
 
-    def draw(self):
-        self.app.menu.draw(self.app.screen)
+    def draw_to(self, surface):
+        self.app.menu.draw(surface)
 
 class PlayingState(GameState):
     def __init__(self, app):
@@ -167,14 +174,13 @@ class PlayingState(GameState):
         if self.app.scene.game_state == "game_over":
             self.app.state = GameOverState(self.app)
 
-    def draw(self):
-        screen = self.app.screen
-        screen.fill(BLACK)
+    def draw_to(self, surface):
+        surface.fill(BLACK)
 
-        self.app.scene.draw(screen)
+        self.app.scene.draw(surface)
 
         self.app.toolbar.draw(
-            screen,
+            surface,
             self.app.font_ch,
             self.app.scene.get_player_data()
         )
@@ -195,8 +201,8 @@ class GameOverState(GameState):
                 self.app.scene = FightScene()
                 self.app.state = PlayingState(self.app)
 
-    def draw(self):
-        self.app.scene.draw(self.app.screen)
+    def draw_to(self, surface):
+        self.app.scene.draw(surface)
         
 def main():
     pygame.init()
@@ -206,94 +212,42 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 app.running = False
+            elif event.type == pygame.VIDEORESIZE:
+                app.window_size = (event.w, event.h)
+                app.screen = pygame.display.set_mode(app.window_size, pygame.RESIZABLE)
             else:
                 app.state.handle_event(event)
 
         app.state.update()
-        app.state.draw()
-        #print(app.state.__class__.__name__)
+        # app.state.draw()
+        # # print(app.state.__class__.__name__)
+
+        # pygame.display.flip()
+        # 1. 所有内容画到虚拟画布
+        app.virtual_surface.fill((0,0,0))
+        app.state.draw_to(app.virtual_surface)
+
+        # 2. 等比缩放 + 黑边
+        screen_w, screen_h = app.window_size
+        base_w, base_h = app.base_size
+
+        scale = min(screen_w / base_w, screen_h / base_h)//1
+        new_w = int(base_w * scale)
+        new_h = int(base_h * scale)
+
+        offset_x = (screen_w - new_w) // 2
+        offset_y = (screen_h - new_h) // 2
+
+        scaled = pygame.transform.scale(app.virtual_surface, (new_w, new_h))
+
+        app.screen.fill((0,0,0))
+        app.screen.blit(scaled, (offset_x, offset_y))
 
         pygame.display.flip()
         app.clock.tick(60)
 
     pygame.quit()
     sys.exit()
-
-# def main():
-#     # 设置屏幕
-#     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-#     pygame.display.set_caption("Stupid Game")
-#     clock = pygame.time.Clock()
-
-#     en_Cogmind_20 = get_font("Cogmind", 20)
-#     ch_Pixel_20 = get_font("Pixel", 20)
-
-#     # 创建战斗场景
-#     fight_scene = FightScene()
-    
-#     # 创建工具栏
-#     toolbar = Toolbar(fight_scene.get_player_data)
-
-#     skillLib = SkillLibrary
-#     skillLib.init_skills()
-#     menu = MainMenu(en_Cogmind_20)
-#     game_state = GAME_STATE_MENU  # ✅ 初始状态是菜单
-#     running = True
-#     while running:
-#         # 1. 事件处理
-#         for event in pygame.event.get():
-#             if event.type == pygame.QUIT:
-#                 running = False
-
-#             if game_state == GAME_STATE_MENU:
-#                 choice = menu.handle_event(event)
-#                 if choice == "Start Game":
-#                     menu.intro(screen)
-#                     game_state = GAME_STATE_PLAYING
-#                 elif choice == "Quit":
-#                     running = False
-#             elif game_state == GAME_STATE_PLAYING:
-
-
-#                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-#                     pass
-#                 elif event.type == pygame.USEREVENT + 1:
-#                     if fight_scene.game_state == "enemy_turn":
-#                         fight_scene.execute_enemy_turn(fight_scene)
-#                         pygame.time.set_timer(pygame.USEREVENT + 1, 0)
-#             # 工具栏事件
-#             toolbar.handle_event(event,fight_scene.player)
-
-#             # 战斗事件（只有主界面才生效）
-#             if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
-#                 fight_scene.handle_event(event)
-#             # GameOver 
-#             if fight_scene.game_state == "game_over":
-#                 if event.type == pygame.KEYDOWN:
-#                     if event.key == pygame.K_q:
-#                         game_state = "menu"   # 回主菜单
-#                         fight_scene = FightScene() 
-#                     elif event.key == pygame.K_r:
-#                         fight_scene = FightScene()  # 重新开始 
-
-            
-
-#         if game_state == GAME_STATE_MENU:
-#             menu.draw(screen)
-#         elif game_state == GAME_STATE_PLAYING:
-#             toolbar.update(fight_scene.player)  # 这里处理科技树等进度
-
-#             screen.fill(BLACK)
-#             if not toolbar.tabs or not any(tab.is_active for tab in toolbar.tabs):
-#                 fight_scene.draw(screen)
-#             toolbar.draw(screen, ch_Pixel_20,fight_scene.get_player_data())
-                
-
-#         pygame.display.flip()
-#         clock.tick(60)
-    
-#     pygame.quit()
-#     sys.exit()
 
 if __name__ == "__main__":
     main()

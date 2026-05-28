@@ -1,7 +1,6 @@
 import pygame
 import random
-from font_manager import get_font
-from colors import *
+from util import *
 from Weapon import *
 from events import DeathEvent
 from statemachine import *
@@ -115,11 +114,44 @@ class Pawn:
         self.scene = scene
         self.events = scene.events
         self.vfx = scene.vfx 
-        self.slash_frames = [# 临时措施
+        self.slash_frames = [
             load_image(f"arts/sprite/slash/slash_{i}.png", (50, 50))
             for i in range(3)
         ]
         self.move_ability = move_ability
+
+        self.fall_speed = 0        # 当前下落速度（格/turn）
+        self.air_turns = 0         # 连续滞空回合
+        self.safe_land = True
+
+        # 拖影系统
+        self.old_pos = self.position     # 当前显示的轨迹点
+        self.turn_ghosts = []
+
+    def update(self, dt):
+        self.state_machine.update(dt)
+        self.anim.update(dt)
+
+    def on_turn_start(self):
+        self.update_statuses()
+
+    def on_turn_end(self):
+        self.update_cooldowns()
+
+    def build_turn_ghost(self, start, end, steps=4):# 拖影
+
+        self.turn_ghosts.clear()
+
+        for i in range(steps):
+            t = (i+1) / steps
+
+            x = start.x + (end.x - start.x) * t
+            y = start.y + (end.y - start.y) * t
+
+            self.turn_ghosts.append({
+                "pos": Vec2(x, y),
+                "alpha": int(t * 255),
+            })
 
     def get_cell_center(self, pos):
         return self.scene.get_cell_center(pos)
@@ -155,7 +187,7 @@ class Pawn:
     def take_damage(self, damage, scene):
         self.health -= damage
 
-        self.add_status(Status("Simplified", "brain", is_illness=True))
+        # self.add_status(Status("Simplified", "brain", is_illness=True))
 
         if self.health <= 0:
             scene.events.push(DeathEvent(self))
@@ -212,7 +244,7 @@ class Pawn:
     def turn_around(self):
         self.direction *= -1
     
-    def move(self, offset):
+    def move(self, offset):        # 现在只改逻辑
         old_pos = self.position
         new_pos = self.position + offset
 
@@ -220,18 +252,12 @@ class Pawn:
         if self.on_move_check:
             new_pos = self.on_move_check(self, new_pos)
 
-        if new_pos is None:
-            return False
+        if new_pos is None:#被阻挡
+            return None
         
-        # self.scene.mymap.vacate(self.position)     # 离开旧格
         self.position = new_pos
-        # self.scene.mymap.occupy(new_pos, self)     # 占用新格
-        
 
-        self.state_machine.change(              # 走 state_machine
-            MoveState(self, old_pos , new_pos)   # MoveState 内部负责插值和播帧
-        )
-        return new_pos
+        return (old_pos, new_pos)
     
     def move_forward(self):
         return self.move(Vec2(self.direction,0))
@@ -242,10 +268,12 @@ class Pawn:
     # def can_move_to(self, pos):
     #     raise NotImplementedError
 
+
 class Player(Pawn):
-    def __init__(self,scene,position=Vec2(1,1)):
+    def __init__(self,scene,position=Vec2(8,1)):
         super().__init__(scene,GroundMove(),position, health=50, sequence_limit=4)
         self.name="Player"
+        self.actor_id = 0
         self.weapons = []
         self.skill_points = {
             "tech": 10,
@@ -272,11 +300,11 @@ class Player(Pawn):
         self.unlock_weapon("DEBUG")  # 初始武器
         self.enabled_damage_decorators: set[str] = set() # 启用的伤害装饰器名称集合
         self.idle_frames = [
-            load_image(f"arts/sprite/Character/hero-idle{i}.png", (64, 64))
+            load_image(f"arts/sprite/Character/hero-idle{i}.png", (32, 32))
             for i in range(2)
         ]
         self.attack_frames = [
-            load_image(f"arts/sprite/Character/hero{i}.png", (64, 64))
+            load_image(f"arts/sprite/Character/hero{i}.png", (32, 32))
             for i in range(6)
         ]
         self.state_machine.change(IdleState(self))
@@ -329,7 +357,7 @@ class Player(Pawn):
         return True
     
     def get_sprite(self):
-        return load_image("arts/sprite/Character/hero.png",(64,64))
+        return load_image("arts/sprite/Character/hero.png",(32,32))
     
     
 class MonsterBlueprint:
@@ -376,6 +404,7 @@ class Enemy(Pawn):
         super().__init__(scene, move_ability,position, health=blueprint.health, sequence_limit=3)
 
         self.name = blueprint.name
+        self.actor_id = 1
         self.type = blueprint.type
         self.flying = blueprint.flying
 
@@ -392,9 +421,9 @@ class Enemy(Pawn):
         else:
             self.strategy = RangedMoveStrategy()
         self.state = AddWeaponState()  # 初始状态为试图添加武器攻击玩家
-        self.idle_frames = [load_image(f"arts/sprite/Character/{self.name}.png", (48, 48))]
+        self.idle_frames = [load_image(f"arts/sprite/Character/{self.name}.png", (32, 32))]
         self.attack_frames = [
-            load_image(f"arts/sprite/Character/{self.name}.png", (48, 48))
+            load_image(f"arts/sprite/Character/{self.name}.png", (32, 32))
         ]
         self.state_machine.change(IdleState(self))
         
@@ -407,7 +436,7 @@ class Enemy(Pawn):
 
     def get_sprite(self):
         try:
-            return load_image(f"arts/sprite/Character/{self.name}.png",(48,48)) 
+            return load_image(f"arts/sprite/Character/{self.name}.png",(32,32)) 
         except FileNotFoundError:
             print("using default enemy img")
             return load_image("arts/sprite/Character/enemy.png")
@@ -463,7 +492,7 @@ class Enemy(Pawn):
     def ai_take_turn(self, scene):
         self.state = self.state.update(self, scene)
     
-    def is_facing_player(self, player):#666
+    def is_facing_player(self, player):
         if self.direction * (player.position.x-self.position.x) > 0:
             return True
         return False

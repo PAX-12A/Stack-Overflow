@@ -80,33 +80,63 @@ class AttackState(State):
                     )
                 )
 
-class MoveState(State):
+# class MoveState(State):
 
-    def __init__(self, pawn, old_pos , new_pos ):
+#     def __init__(self, pawn, old_pos , new_pos ):
+#         super().__init__(pawn)
+#         self.start = Vec2(float(pawn.render_pos.x), float(pawn.render_pos.y))  # 用渲染位置
+#         # self.start = pawn.position 
+#         self.duration = 0.2
+#         self.t = 0
+#         self.old_pos = old_pos
+#         self.new_pos = new_pos
+
+#     def enter(self):
+#         self.anim = MoveAnimation(self.pawn.idle_frames, self.pawn, self.old_pos, self.new_pos)
+#         self.pawn.anim.play(self.anim)
+
+#     def update(self, dt):
+#         if self.anim.finished:
+#             self.pawn.move_completed = True        
+#             self.pawn.position = self.new_pos
+
+#             # 落地后检查陷阱
+#             trap = self.pawn.scene.mymap.get_trap(self.new_pos)
+#             if trap:
+#                 trap.on_enter(self.pawn)   # ← 陷阱自己决定效果
+
+#             self.pawn.state_machine.change(IdleState(self.pawn))
+
+class MoveVisualState(State):
+
+    def __init__(self, pawn, step):
+
         super().__init__(pawn)
-        self.start = Vec2(float(pawn.render_pos.x), float(pawn.render_pos.y))  # 用渲染位置
-        # self.start = pawn.position 
-        self.duration = 0.2
-        self.t = 0
-        self.old_pos = old_pos
-        self.new_pos = new_pos
+
+        self.step = step
 
     def enter(self):
-        self.anim = MoveAnimation(self.pawn.idle_frames, self.pawn, self.old_pos, self.new_pos)
+
+        self.anim = MoveAnimation(
+            self.pawn.idle_frames,
+
+            self.pawn,
+
+            self.step.start,
+            self.step.end,
+
+            self.step.duration
+        )
+
         self.pawn.anim.play(self.anim)
 
     def update(self, dt):
+
         if self.anim.finished:
-            self.pawn.move_completed = True        
-            self.pawn.position = self.new_pos
 
-            # 落地后检查陷阱
-            trap = self.pawn.scene.mymap.get_trap(self.new_pos)
-            if trap:
-                trap.on_enter(self.pawn)   # ← 陷阱自己决定效果
-
-            self.pawn.state_machine.change(IdleState(self.pawn))
-
+            self.pawn.state_machine.change(
+                IdleState(self.pawn)
+            )
 
 class HitState(State):
 

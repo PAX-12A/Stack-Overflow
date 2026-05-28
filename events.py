@@ -1,5 +1,5 @@
 from collections import deque
-from colors import *
+from util import *
 
 class Event:
     pass

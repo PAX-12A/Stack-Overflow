@@ -3,7 +3,7 @@ import random
 import random
 from collections import deque
 from grid import Vec2
-from colors import load_image
+from util import load_image
 from events import DamageEvent
 
 WALL = 1 
@@ -28,18 +28,18 @@ class Map:
         self.occupants = {}  # 改为字典：{(x, y): pawn_object}
 
         self.tiles = [
-            load_image("arts/sprite/tiles/tile0.png",(64,64)),
-            load_image("arts/sprite/tiles/tile1.png",(64,64)),
-            load_image("arts/sprite/tiles/tile2.png",(64,64)),
-            load_image("arts/sprite/tiles/tile3.png",(64,64)),
-            load_image("arts/sprite/tiles/tile4.png",(64,64)),
+            load_image("arts/sprite/tiles/tile0.png",(32,32)),
+            load_image("arts/sprite/tiles/tile1.png",(32,32)),
+            load_image("arts/sprite/tiles/tile2.png",(32,32)),
+            load_image("arts/sprite/tiles/tile3.png",(32,32)),
+            load_image("arts/sprite/tiles/tile4.png",(32,32)),
         ]
 
-        self.traptile = {"spike":load_image("arts/sprite/tiles/trap1.png",(64,64)),}
+        self.traptile = {"spike":load_image("arts/sprite/tiles/trap1.png",(32,32)),}
 
         self.decotile = [
-            load_image("arts/sprite/tiles/tile0.png",(64,64)),
-            load_image("arts/sprite/tiles/deco1.png",(64,64)),
+            load_image("arts/sprite/tiles/tile0.png",(32,32)),
+            load_image("arts/sprite/tiles/deco1.png",(32,32)),
         ]
 
     # =========================
@@ -49,16 +49,16 @@ class Map:
     def generate_map(self):
 
         self.init_random()
-        self.run_cellular_automata()
+        # self.run_cellular_automata()
 
         start = (1, self.height // 2)
         end = (self.width - 2, self.height // 2)
 
-        path = self.generate_main_path(start, end)
+        # path = self.generate_main_path(start, end)
 
-        self.carve_path(path)
+        # self.carve_path(path)
 
-        self.ensure_connectivity(start)
+        # self.ensure_connectivity(start)
 
         self.place_exit()
 
@@ -83,7 +83,17 @@ class Map:
                 if x == 0 or y == 0 or x == self.width-1 or y == self.height-1:
                     row.append(WALL)
                 else:
-                    row.append(WALL if random.random() < 0.4 else VOID)
+                    make_wall = False
+
+                    # 基础 5% 墙
+                    if random.random() < 0.05:
+                        make_wall = True
+
+                    # 如果左边是墙，则额外 20% 延伸
+                    elif row[-1] == WALL and random.random() < 0.20:
+                        make_wall = True
+
+                    row.append(WALL if make_wall else VOID)
 
             self.terrain.append(row)
 

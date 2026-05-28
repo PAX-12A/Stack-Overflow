@@ -1,4 +1,4 @@
-from colors import *
+from util import *
 from grid import Vec2
 from Action import *
 class Weapon:
@@ -95,6 +95,18 @@ class SwapWeapon(Weapon):
         scene.use_swap_weapon()
 
 class MineWeapon(Weapon):
+
+    def build_actions(self, scene, actor, damage):
+        return [
+            MineAction(actor,self),
+            AttackAction(actor, self, damage),  # execute() 只做攻击
+        ]
+
+    def execute(self, scene, actor, damage):
+        # 只负责攻击，移动已经由 MoveAction 处理
+        scene.attack_by_pattern(actor, self, damage)
+
+class ShootWeapon(Weapon):
 
     def build_actions(self, scene, actor, damage):
         print(6666)
@@ -224,4 +236,5 @@ weapon_registry = {
     "DragAndDrop":MoveWeapon,
     "DEBUG":MoveWeapon,
     "Data Mining":MineWeapon,
+
 }

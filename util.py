@@ -6,19 +6,18 @@ GRAY = (100, 100, 100)
 SHADOW = (50, 50, 50)
 RED = (220, 20, 60)
 
-GRID_WIDTH = 32
-GRID_HEIGHT = 32
-CELL_WIDTH = 64
-CELL_HEIGHT = 64
+GRID_WIDTH = 16
+GRID_HEIGHT = 64
+CELL_WIDTH = 32
+CELL_HEIGHT = 32
 
-SCREEN_WIDTH = 1080
-SCREEN_HEIGHT = 720
+SCREEN_WIDTH = 640
+SCREEN_HEIGHT = 360
 TOOLBAR_HEIGHT = 60
 
 import pygame
 import os
 import json
-from font_manager import get_font
 
 # 全局集合，记录已经提示过的缺失图片
 _missing_logged = set()
@@ -90,7 +89,35 @@ def render_ascii_art(screen, label, font_size=16, x=10, y=20, color=WHITE):
         text_surface = font.render(line.rstrip("\n"), False, color)  # False = 关闭抗锯齿
         screen.blit(text_surface, (x, y + i * font_size))
 
-TAB_WIDTH = 220
-TAB_HEIGHT = 40
+TAB_WIDTH = 24
+TAB_HEIGHT = 24
 GAME_STATE_MENU = "menu"
 GAME_STATE_PLAYING = "playing"
+
+_font_cache = {}
+_default_name = "DOS"
+_default_size = 16
+
+def get_font(name: str = None, size: int = None):
+    name = name or _default_name
+    size = size or _default_size
+
+    key = (name, size)
+    if key not in _font_cache:        
+        font_path = {
+            "Lolita": "assets/fonts/Lolita.ttf",
+            "Pixel": "assets/fonts/Pixel.ttf",
+            "DOS": "assets/fonts/DOS.ttf",
+            "Cogmind": "assets/fonts/Cogmind.ttf",
+            "Time": "assets/fonts/Time.ttf",
+            "Patriot": "assets/fonts/Patriot.ttf",
+            "AA":"assets/fonts/Saitamaar-Regular.ttf",
+            # "AA2":"assets/fonts/Saitamaar.woff2",
+        }.get(name)
+
+        if not font_path:
+            raise ValueError(f"No font mapping for:{name}")
+
+        _font_cache[key] = pygame.font.Font(font_path, size)
+
+    return _font_cache[key]

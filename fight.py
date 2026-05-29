@@ -135,42 +135,6 @@ class FightScene:
         """返回已排序的敌人位置"""
         return sorted(enemy.position for enemy in self.enemies if enemy.alive)
     
-    # def get_closest_pawn(self, source_position , max_range=None, direction=None, pawn_type="enemy"):
-    #     """
-    #     从整个 scene 中找最近的单位
-    #     :return: 最近的 pawn 或 None
-    #     """
-    #     # 根据 pawn_type 确定候选列表
-    #     if pawn_type == "enemy":
-    #         candidates = self.enemies
-    #     elif pawn_type == "player":
-    #         candidates = [self.player]
-    #     elif pawn_type == "all":
-    #         candidates = [self.player] + self.enemies
-    #     else:
-    #         candidates = []
-
-    #     if not candidates:
-    #         return None
-
-    #     # 按方向过滤
-    #     if direction == 1:  # 右边
-    #         candidates = [p for p in candidates if p.position.x > source_position.x]
-    #     elif direction == -1:  # 左边
-    #         candidates = [p for p in candidates if p.position.x < source_position.x]
-
-    #     if not candidates:
-    #         return None
-
-    #     # 找最近
-    #     closest = min(candidates, key=lambda p: (abs(p.position-source_position)+abs(p.position-source_position)))
-
-    #     # # 射程判定
-    #     # if max_range is not None and abs(closest.position - source_position) > max_range:
-    #     #     return None
-
-    #     return closest
-    
     def can_see_line(self,pawn1,pawn2):#666
         # 视线判定：两者之间没有其他单位阻挡
         if pawn1.position == pawn2.position:
@@ -217,9 +181,6 @@ class FightScene:
             return None
 
         enemy = self.get_pawn_at(new_pos,"enemy")
-        # print(enemy)
-        # for e in self.enemies:
-        #     print(e.position)
 
         if enemy:
 
@@ -228,9 +189,6 @@ class FightScene:
                 old_actor = actor.position
                 old_enemy = enemy.position
 
-                # enemy.position = old_actor
-                # enemy.move(Vec2(old_actor.x-old_enemy.x,0))
-                    # ✅ 给敌人也播放移动动画
                 enemy.position = old_actor
                 enemy.anim.play(
                     MoveAnimation(enemy.idle_frames, enemy, old_enemy, old_actor)
@@ -244,23 +202,13 @@ class FightScene:
 
         # if actor.move_ability.can_move_to(new_pos,self.mymap):
         return new_pos
-
-        return None
     
     def resolve_actions(self):
 
-        consumed = False
-
-        while self.actions:
-
-            action = self.actions.pop()
-
-            action.start(self)
-
-            if action.turn_consumed:
-                consumed = True
-
-        return consumed
+        return any(
+            action.turn_consumed
+            for action in self.actions
+        )
     
     def execute_ui_command(self, command):
         if isinstance(command, SelectWeaponCommand):
@@ -281,105 +229,6 @@ class FightScene:
 
         # gameplay
         self.gameplay_input.handle_event(event)
-
-    # def handle_event(self,event):
-    #     if self.game_state != "player_turn":
-    #         return
-    #     self.hotbar.handle_event(event, self.player)
-    #     if event.type == pygame.KEYDOWN:
-    #         # === 移动：A / ←（左），D / →（右） ===
-    #         if event.key in [pygame.K_a, pygame.K_LEFT]:
-    #             # if self.player.move(Vec2(-1,0)):
-    #             #     self.end_player_turn()
-
-    #             self.actions.append(
-    #                 MoveAction(
-    #                     self.player,
-    #                     Vec2(-1,0)
-    #                 )
-    #             )
-
-    #             consumed = self.resolve_actions()
-
-    #             if consumed:
-    #                 self.end_player_turn()
-
-    #         elif event.key in [pygame.K_d, pygame.K_RIGHT]:
-    #             # if self.player.move(Vec2(1,0)):
-    #             #     self.end_player_turn()
-
-    #             self.actions.append(
-    #                 MoveAction(
-    #                     self.player,
-    #                     Vec2(1,0)
-    #                 )
-    #             )
-
-    #             consumed = self.resolve_actions()
-
-    #             if consumed:
-    #                 self.end_player_turn()
-
-    #         elif event.key in [pygame.K_w, pygame.K_UP]:
-    #             self.player.turn_around()           
-    #             self.end_player_turn()
-    #         elif event.key in [pygame.K_s, pygame.K_DOWN]:
-    #             self.end_player_turn()
-    #         elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9]:
-    #             index = event.key - pygame.K_1
-    #             success, msg = self.player.try_add_weapon_to_sequence(index,self)
-    #             if success:
-    #                 self.end_player_turn()
-    #             # self.add_message(msg) 
-    #         elif event.key in [pygame.K_x,pygame.K_SPACE]:
-    #             if self.player.action_sequence:
-    #                 self.execute_actions(self.player)
-    #                 self.end_player_turn()
-    #             else:
-    #                 self.add_message("Empty Sequence!")
-
-    #     elif event.type == pygame.MOUSEBUTTONDOWN:#移动序列的内容
-    #         mx, my = event.pos
-    #         for i in range(len(self.player.weapons)):
-    #             rect2 = self.get_weapon_rect(i)
-    #             if rect2.collidepoint(mx, my):
-    #                 success, msg = self.player.try_add_weapon_to_sequence(i,self)
-    #                 if success:
-    #                     self.end_player_turn()
-    #                 self.add_message(msg) 
-    #         for i, index in enumerate(self.player.action_sequence):
-    #             # print(event.pos)
-    #             rect = self.get_sequence_rect(i)
-    #             if rect.collidepoint(mx, my):
-    #                 self.dragging_index = i
-    #                 self.dragging_weapon = index
-    #                 print(self.dragging_index,self.dragging_weapon)
-    #                 break
-    #     elif event.type == pygame.MOUSEBUTTONUP:
-
-    #         if self.dragging_weapon is not None:
-
-    #             mx, my = event.pos
-
-    #             new_index = None
-
-    #             for i in range(len(self.player.action_sequence)):
-
-    #                 rect = self.get_sequence_rect(i)
-
-    #                 if rect.collidepoint(mx, my):
-    #                     new_index = i
-    #                     break
-
-    #             if new_index is not None:
-
-    #                 seq = self.player.action_sequence
-
-    #                 weapon = seq.pop(self.dragging_index)
-    #                 seq.insert(new_index, weapon)
-
-    #             self.dragging_weapon = None
-    #             self.dragging_index = None
 
     def print_executed_actions(self,executed_actions):
         if not executed_actions:
@@ -416,19 +265,11 @@ class FightScene:
             # damage = ShieldDecorator(damage, target)
 
             # actual_damage = damage.value()
+
             damage = damage.value()
-            # self.actions.append(
-            #     AttackAction(actor, weapon, damage)
-            # )
             # 让武器自己决定产生哪些 Action
             actions = weapon.build_actions(self, actor, damage)
             self.actions.extend(actions)
-
-
-    def attack_by_pattern(self, actor , weapon , actual_damage):
-        # weapon = actor.weapons[0]
-        attack_positions = self.get_adjusted_attack_positions(weapon, actor)
-        actor.state_machine.change(AttackState(actor, attack_positions , actual_damage))
 
     def shoot(self, weapon,actual_damage,actor):
         # 获取当前方向最近的敌人
@@ -463,15 +304,15 @@ class FightScene:
     def get_legal_position(self, postion):
         return max(0, min(self.grid_size - 1, postion))
 
-    def get_adjusted_attack_positions(self, weapon, actor):
-        adjusted_positions = []
-        for offset in weapon.pattern:
-            actual_offset = offset * actor.direction  # 左右翻转
-            target_pos = actor.position + actual_offset
-            # if 0 <= target_pos.x < GRID_WIDTH & 0 <= target_pos.y < GRID_HEIGHT:
-            adjusted_positions.append(target_pos)
-        print(f"{actor.name}攻击方向: {actor.direction}, 攻击格子: {adjusted_positions}")
-        return adjusted_positions
+    # def get_adjusted_attack_positions(self, weapon, actor):
+    #     adjusted_positions = []
+    #     for offset in weapon.pattern:
+    #         actual_offset = offset * actor.direction  # 左右翻转
+    #         target_pos = actor.position + actual_offset
+    #         # if 0 <= target_pos.x < GRID_WIDTH & 0 <= target_pos.y < GRID_HEIGHT:
+    #         adjusted_positions.append(target_pos)
+    #     print(f"{actor.name}攻击方向: {actor.direction}, 攻击格子: {adjusted_positions}")
+    #     return adjusted_positions
     
     def get_occupied_positions(self):
         return {enemy.position for enemy in self.enemies}
@@ -525,9 +366,6 @@ class FightScene:
         enemy = EnemyFactory.create(self,position)
         return enemy
     
-    def fall(self):
-        self.actions.append(GravityAction(self.player))
-
     def save_timeline(self):
             data = [step.to_dict() for step in self.timeline]
             with open("timeline.json", "w") as f:
@@ -536,8 +374,7 @@ class FightScene:
     def end_player_turn(self):
         self.game_state = "enemy_turn"
         if not self.mymap.is_walkable(self.player.position):
-            self.fall()
-        # print(self.player.position) #666
+            self.actions.append(GravityAction(self.player))
 
         if self.mymap.get_terrain(self.player.position) == 3:
             self.level += 1
@@ -578,22 +415,9 @@ class FightScene:
         for enemy in self.enemies:
             enemy.update_cooldowns()
 
-        gravity_actions = []
-        #     GravityAction(enemy) for enemy in self.enemies
-        #     if not enemy.flying and self.mymap.is_walkable(enemy.position)
-        # ]
-
-        # for enemy in self.enemies:
-        #     if not enemy.flying:
-        #         if not self.mymap.is_walkable(enemy.position):
-        #             gravity_actions.append(GravityAction(enemy))
-
-        # if gravity_actions:  # 避免 ParallelAction 包空列表
-        #     self.actions.append(ParallelAction(gravity_actions))
-
         for enemy in self.enemies:
             if not enemy.flying:
-                if not self.mymap.is_walkable(enemy.position):
+                if not self.mymap.is_walkable(enemy.position) and not self.get_pawn_at(enemy.position+Vec2(0,1),"all"):
                     self.actions.append(GravityAction(enemy))
 
         if self.game_state != "game_over":
@@ -619,9 +443,9 @@ class FightScene:
         
         # 绘制敌人
         for enemy in self.enemies:            
+            self.draw_pawns(screen, enemy)
+
             # 绘制敌人血量
-
-
             screen_pos = self.camera.apply(enemy.render_pos)
             # health_ratio = enemy.health / enemy.max_health
             # health_width = 20
@@ -632,8 +456,6 @@ class FightScene:
             hp_text = self.font.render(str(enemy.health), True, GREEN)
 
             screen.blit(hp_text,(health_x,health_y))
-
-            self.draw_pawns(screen, enemy)
 
     def draw_pawns(self, screen , pawn):
         character = pawn.anim.get_frame()
@@ -750,20 +572,10 @@ class FightScene:
         screen.blit(level_text, (SCREEN_WIDTH- 30 - 32, 30))
         
         # 绘制武器状态
-        weapon_y = 10
-        # for i, weapon in enumerate(self.player.weapons):
-        #     color = GREEN if weapon.is_ready() else RED
-        #     cooldown_text = f"{weapon.damage},{weapon.current_cooldown}" if not weapon.is_ready() else f"{weapon.damage},Ready"
-            
-        #     weapon_text = self.font.render(f"{i+1}.  {weapon.name} ({cooldown_text})", True, color)
-        #     screen.blit(weapon_text, (5, weapon_y + i * 20))
-        #     weapon_image = load_image(f"arts/sprite/weapons/{weapon.name}.png", (16, 16))
-        #     render_1bit_sprite(screen, weapon_image, (20, weapon_y + i * 20 - 3 ), color)
         self.ui_input.hotbar.draw(screen, self.font)
         self.ui_input.hotbar.set_weapons(self.player.weapons)
 
-
-            # 绘制动作序列
+        # 绘制动作序列
         if self.player.action_sequence:
             seq_text = self.font.render("Sequence:", True, WHITE)
             screen.blit(seq_text, (10, 200))
@@ -827,7 +639,9 @@ class FightScene:
 
     def update_actionqueue(self, dt):
 
-        if not self.current_action and self.actions:
+        # print("CURRENT", self.current_action)
+
+        if self.current_action is None and self.actions:
             self.current_action = self.actions.popleft()
             self.current_action.start(self)
 
@@ -873,63 +687,6 @@ class FightScene:
             if enemy.anim.current is not None:
                 return False
         return True
-
-    # def start_action(self, action):#666
-    #     if isinstance(action, MoveAction):
-    #         actor = action.actor
-    #         r = action.actor.move(action.offset)
-
-    #         if not r:
-    #             self.finish_action()
-
-    #         return
-    #         # MoveState 结束时调用 finish_action，队列自动推进到下一个 AttackAction
-    #     if isinstance(action, PatternAttackAction):         # 直接走 pattern
-    #         self.attack_by_pattern(action.weapon, action.damage, action.actor)
-    #         return
-    #     if isinstance(action, AttackAction):
-    #         actor = action.actor
-    #         weapon = action.weapon
-    #         damage = action.damage
-    #         actual_damage = damage.value()
-
-    #         # --- 类型1: melee / ranged（固定 pattern 攻击） ---
-    #         if weapon.weapon_type in ["melee", "meleeMove"]:
-    #             if weapon.weapon_type == "meleeMove":actor.move(1)
-    #             self.attack_by_pattern(weapon,actual_damage,actor)
-
-    #         # --- 类型2: dash_to_enemy ---
-    #         elif weapon.weapon_type == "dash_to_enemy":
-    #             self.use_dash_to_enemy(weapon,actual_damage,actor)
-
-    #         elif weapon.weapon_type == "roll":
-    #              self.use_roll_to_enemy(weapon,actual_damage,actor)
-
-
-            # # --- 类型3: shoot（攻击最近敌人） ---
-            # elif weapon.weapon_type == "ranged":
-            #     self.shoot(weapon,actual_damage,actor)
-            #     self.finish_action() #tmp
-
-            # # --- 类型4: fireball（攻击最近敌人±1格） ---
-            # elif weapon.weapon_type == "fireball":
-            #     closest_pawn = self.get_closest_pawn(actor.position, direction=actor.direction,pawn_type="all")
-            #     if closest_pawn:
-            #         print(f"explosion_center:{closest_pawn.position}")
-            #         for offset in weapon.pattern:
-            #             position = closest_pawn.position + offset
-            #             pawn = self.get_pawn_at(position,pawn_type="all")
-            #             if pawn:
-            #                 self.events.push(DamageEvent(actor, pawn, actual_damage)) #入队
-            #                 actor.apply_weapon_effects(pawn, weapon)
-            #     self.finish_action() #tmp
-
-    # def finish_action(self):
-    #     if self.current_action is None:
-    #         print("WARNING: finish_action called twice")
-    #     return
-        self.current_action = None
-        # pygame.time.wait(300)
 
     def draw(self, screen):
         # print(self.player.position,self.player.render_pos)

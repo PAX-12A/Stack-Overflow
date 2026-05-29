@@ -186,11 +186,10 @@ class Pawn:
     
     def take_damage(self, damage, scene):
         self.health -= damage
-
-        # self.add_status(Status("Simplified", "brain", is_illness=True))
-
         if self.health <= 0:
             scene.events.push(DeathEvent(self))
+
+        # self.add_status(Status("Simplified", "brain", is_illness=True))
 
         # self.add_status(Status("PC addict", "brain", is_illness=True))
         # self.add_status(Status("Diabetes", "wholebody", is_illness=True))

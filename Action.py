@@ -15,67 +15,12 @@ class Action:
     def is_finished(self):
         return True
 
-
-
-# class MoveAction(Action):
-
-#     def __init__(self, actor, offset):
-
-#         super().__init__(actor)
-
-#         self.offset = offset
-#         self.finished = False
-#         self.target = None
-
-#     def start(self, scene):
-
-#         self.actor.move_completed = False     # ← 出发前清除旗子
-
-#         old_pos = self.actor.position
-#         new_pos = old_pos + self.offset
-
-#         result = self.actor.move(self.offset)
-
-#         if result is None:
-#             self.finished = True
-#             return
-
-#         old_pos, new_pos = result
-        
-#         self.target = new_pos
-#         # self.render_pos = old_pos
-
-#         step = TimelineStep(
-#             actor_id=self.actor.actor_id,
-#             step_type="move",
-#             start=old_pos,
-#             end=new_pos,
-#             duration=0.15
-#         )
-
-#         scene.timeline.append(step)
-
-
-#     def update(self, scene, dt):
-
-#         if self.finished:
-#             return
-
-#         if self.actor.move_completed:         # ← 检查旗子，不检查 position
-#             self.actor.move_completed = False
-#             self.finished = True
-
-#     def is_finished(self):
-#         return self.finished
-
 class WaitAction(Action):
     def __init__(self, actor):
         super().__init__(actor,turn_consumed=True)
     def start(self, scene):
         print("waiting")
         return
-        
-
 
 class MoveAction(Action):
 
@@ -90,7 +35,6 @@ class MoveAction(Action):
 
         old_pos = self.actor.position
         new_pos = old_pos + self.offset
-
 
         result = self.actor.move(self.offset) # 逻辑移动
 
@@ -109,18 +53,14 @@ class MoveAction(Action):
             start=old_pos,
             end=new_pos,
 
-            duration=0.15
+            duration=0.1
         )
 
         scene.timeline.append(step)
 
         # 视觉动画
-        self.actor.state_machine.change(
-            MoveVisualState(
-                self.actor,
-                step
-            )
-        )
+        self.state = MoveVisualState(self.actor,step)
+        self.actor.state_machine.change(self.state)
 
         # Trap
         trap = scene.mymap.get_trap(new_pos)
@@ -128,78 +68,14 @@ class MoveAction(Action):
         if trap:
             trap.on_enter(self.actor)
 
-        self.finished = True
-
-    def update(self, scene, dt):
-        pass
-
-    def is_finished(self):
-        return self.finished
-
-class AttackAction(Action):
-
-    def __init__(self, actor, weapon, damage):
-        super().__init__(actor)
-
-        self.weapon = weapon
-        self.damage = damage
-        self.finished = False
-
-    def start(self, scene):
-
-        self.actor.attack_completed = False
-
-        self.weapon.execute(scene, self.actor, self.damage)
-
     def update(self, scene, dt):
 
-        if self.finished:
-            return
-
-        if self.actor.attack_completed:         
-            self.actor.attack_completed = False
+        if hasattr(self,"state") and self.state.finished:
             self.finished = True
 
     def is_finished(self):
-        
         return self.finished
     
-class MineAction(Action):
-    def __init__(self, actor , weapon):
-        super().__init__(actor)
-        self.finished = False
-        self.weapon= weapon
-
-    def start(self, scene):
-        for pt in self.weapon.pattern :
-            scene.mymap.destroy_tile(self.actor.position + pt)
-        self.finished = True
-
-    def is_finished(self):
-        return self.finished
-
-# class GravityAction(Action):
-#     def __init__(self, actor):
-#         super().__init__(actor)
-#         self.inner_action = None
-#         self.finished = False
-
-#     def start(self, game):
-#         if not game.mymap.is_walkable(self.actor.position):
-#             self.inner_action = MoveAction(self.actor, Vec2(0, 1))
-#             self.inner_action.start(game)   # ← 直接启动，不进主队列
-#         else:
-#             self.finished = True
-
-#     def update(self, scene, dt):
-#         # if self.inner_action:
-#         #     self.inner_action.update(scene, dt)
-#         #     if self.inner_action.is_finished():
-#                 self.finished = True
-        
-#     def is_finished(self):
-#         return self.finished
-
 class GravityAction(Action):
 
     def __init__(self, actor):
@@ -223,25 +99,112 @@ class GravityAction(Action):
             step_type="fall",
             start=old_pos,
             end=new_pos,
-            duration=0.1
+            duration=0.05
         )
 
         scene.timeline.append(step)
 
-        self.actor.state_machine.change(
-            MoveVisualState(
-                self.actor,
-                step
-            )
-        )
-
-        self.finished = True
+        # 视觉动画
+        self.state = MoveVisualState(self.actor,step)
+        self.actor.state_machine.change(self.state)
 
     def update(self, scene, dt):
-        pass
+
+        if self.state.finished:
+            self.finished = True
 
     def is_finished(self):
         return self.finished
+
+class AttackAction(Action):
+
+    def __init__(self, actor, weapon, attack_positions ,damage):
+        super().__init__(actor)
+
+        self.weapon = weapon
+        self.damage = damage
+        self.attack_positions = attack_positions
+        self.finished = False
+        self.hit_done = False
+
+    def start(self, scene):
+
+        print(f"{self.actor} triggers AttackAction,pos:{self.actor.position.x},{self.actor.position.y}")
+
+        # self.actor.state_machine.change(AttackVisualState(self.actor))
+
+        # for pos in self.attack_positions:
+        #     target = scene.get_pawn_at(pos)
+
+        #     if target:
+                
+        #         self.actor.events.push(
+        #             DamageEvent(self.actor, target, self.damage)
+        #         )
+
+        #         self.actor.vfx.add(
+        #             SlashVFX(
+        #                 self.actor.slash_frames,
+        #                 target.render_pos,
+        #                 self.actor.direction
+        #             )
+        #         )
+
+        self.state = AttackVisualState(self.actor)
+
+        self.actor.state_machine.change(self.state)
+
+    def update(self, scene, dt):
+
+        if self.state.hit_triggered and not self.hit_done:
+
+            self.hit_done = True
+
+            for pos in self.attack_positions:
+
+                target = scene.get_pawn_at(pos)
+
+                if target:
+
+                    print(777)
+
+                    self.actor.events.push(
+                        DamageEvent(
+                            self.actor,
+                            target,
+                            self.damage
+                        )
+                    )
+
+                    self.actor.vfx.add(
+                        SlashVFX(
+                            self.actor.slash_frames,
+                            target.render_pos,
+                            self.actor.direction
+                        )
+                    )
+
+        if self.state.finished:
+            self.finished = True
+
+    def is_finished(self):     
+        return self.finished
+    
+class MineAction(Action):
+    def __init__(self, actor , weapon):
+        super().__init__(actor)
+        self.finished = False
+        self.weapon= weapon
+
+    def start(self, scene):
+        for pt in self.weapon.pattern :
+            scene.mymap.destroy_tile(self.actor.position + pt)
+        self.finished = True
+
+    def is_finished(self):
+        return self.finished
+
+
     
 class ParallelAction(Action):
     """包裹一组 Action，让它们同时执行，全部完成后才结束"""

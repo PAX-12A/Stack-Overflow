@@ -44,17 +44,16 @@ class IdleState(State):
     def update(self, dt):
         pass
 
-class AttackState(State):
+class AttackVisualState(State):
 
-    def __init__(self, pawn, attack_positions , damage):
+    def __init__(self, pawn):
         super().__init__(pawn)
-        self.attack_positions=attack_positions
-        self.damage = damage
-        self.hit_done = False
-        self.pawn.attack_completed = False   
+
+        self.hit_triggered = False
+        self.finished = False
 
     def enter(self):
-        print(f"{self.pawn.name} Enter Attack State")
+        print(f"{self.pawn.name} Enter AttackVisual State")
         self.anim = FrameAnimation(
             self.pawn.attack_frames,
             speed=0.08
@@ -62,50 +61,17 @@ class AttackState(State):
         self.pawn.anim.play(self.anim)
 
     def update(self, dt):
+
+        if self.anim.index >= HIT_FRAME and not self.hit_triggered:
+            self.hit_triggered = True
+
         if self.anim.finished:
-            self.pawn.attack_completed = True   
-            self.pawn.state_machine.change(IdleState(self.pawn)) 
+            self.finished = True
 
-        if self.anim.index >= HIT_FRAME and not self.hit_done:  # 等到指定帧
-            self.hit_done = True
-            for pos in self.attack_positions:
-                target = self.pawn.scene.get_pawn_at(pos)
-                if target:
-                    self.pawn.events.push(DamageEvent(self.pawn, target, self.damage))
-                    self.pawn.vfx.add(
-                    SlashVFX(
-                        self.pawn.slash_frames,
-                        target.render_pos,
-                        self.pawn.direction
-                    )
-                )
+            self.pawn.state_machine.change(
+                IdleState(self.pawn)
+            )
 
-# class MoveState(State):
-
-#     def __init__(self, pawn, old_pos , new_pos ):
-#         super().__init__(pawn)
-#         self.start = Vec2(float(pawn.render_pos.x), float(pawn.render_pos.y))  # 用渲染位置
-#         # self.start = pawn.position 
-#         self.duration = 0.2
-#         self.t = 0
-#         self.old_pos = old_pos
-#         self.new_pos = new_pos
-
-#     def enter(self):
-#         self.anim = MoveAnimation(self.pawn.idle_frames, self.pawn, self.old_pos, self.new_pos)
-#         self.pawn.anim.play(self.anim)
-
-#     def update(self, dt):
-#         if self.anim.finished:
-#             self.pawn.move_completed = True        
-#             self.pawn.position = self.new_pos
-
-#             # 落地后检查陷阱
-#             trap = self.pawn.scene.mymap.get_trap(self.new_pos)
-#             if trap:
-#                 trap.on_enter(self.pawn)   # ← 陷阱自己决定效果
-
-#             self.pawn.state_machine.change(IdleState(self.pawn))
 
 class MoveVisualState(State):
 
@@ -114,17 +80,15 @@ class MoveVisualState(State):
         super().__init__(pawn)
 
         self.step = step
+        self.finished= False
 
     def enter(self):
 
         self.anim = MoveAnimation(
             self.pawn.idle_frames,
-
             self.pawn,
-
             self.step.start,
             self.step.end,
-
             self.step.duration
         )
 
@@ -133,6 +97,7 @@ class MoveVisualState(State):
     def update(self, dt):
 
         if self.anim.finished:
+            self.finished = True
 
             self.pawn.state_machine.change(
                 IdleState(self.pawn)

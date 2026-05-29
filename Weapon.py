@@ -24,17 +24,26 @@ class Weapon:
         if self.current_cooldown > 0:
             self.current_cooldown -= 1
 
-    def execute(self, scene, actor, damage):
-        pass
+    def get_attack_positions(self, actor):
+
+        adjusted_positions = []
+
+        for offset in self.pattern:
+
+            actual_offset = offset * actor.direction
+
+            target_pos = actor.position + actual_offset
+
+            adjusted_positions.append(target_pos)
+
+            print(f"{actor.name}攻击方向: {actor.direction}, 攻击格子: {adjusted_positions}")
+
+        return adjusted_positions
 
 class PatternWeapon(Weapon):
 
     def build_actions(self, scene, actor, damage):
-        return [AttackAction(actor, self, damage)]  # 单段，直接返回一个
-    
-    def execute(self, scene, actor, damage):
-        # 只负责攻击，移动已经由 MoveAction 处理
-        scene.attack_by_pattern(actor, self, damage)
+        return [AttackAction(actor, self, self.get_attack_positions(actor),damage)]  
 
 class DashWeapon(Weapon):
 
@@ -48,14 +57,15 @@ class DashWeapon(Weapon):
         target_x = closest_enemy.position.x - actor.direction
         offset = Vec2(target_x - actor.position.x, 0)
 
+        final_attack_positions = [
+            Vec2(target_x + pattern_offset.x * actor.direction,closest_enemy.position.y)
+            for pattern_offset in self.pattern
+        ]
+        
         return [
             MoveAction(actor, offset),
-            AttackAction(actor, self, damage),  # execute() 只做攻击
+            AttackAction(actor, self, final_attack_positions , damage)  # execute() 只做攻击
         ]
-
-    def execute(self, scene, actor, damage):
-        # 只负责攻击，移动已经由 MoveAction 处理
-        scene.attack_by_pattern(actor, self, damage)
 
 class RollWeapon(Weapon):
 
@@ -71,12 +81,8 @@ class RollWeapon(Weapon):
 
         return [
             MoveAction(actor, offset),
-            AttackAction(actor, self, damage),  # execute() 只做攻击
+            AttackAction(actor, self, self.get_attack_positions(actor),damage),  # execute() 只做攻击
         ]
-
-    def execute(self, scene, actor, damage):
-        # 只负责攻击，移动已经由 MoveAction 处理
-        scene.attack_by_pattern(actor, self, damage)
 
 class MoveWeapon(Weapon):
 
@@ -102,10 +108,6 @@ class MineWeapon(Weapon):
             AttackAction(actor, self, damage),  # execute() 只做攻击
         ]
 
-    def execute(self, scene, actor, damage):
-        # 只负责攻击，移动已经由 MoveAction 处理
-        scene.attack_by_pattern(actor, self, damage)
-
 class ShootWeapon(Weapon):
 
     def build_actions(self, scene, actor, damage):
@@ -115,10 +117,6 @@ class ShootWeapon(Weapon):
             MineAction(actor,self),
             AttackAction(actor, self, damage),  # execute() 只做攻击
         ]
-
-    def execute(self, scene, actor, damage):
-        # 只负责攻击，移动已经由 MoveAction 处理
-        scene.attack_by_pattern(actor, self, damage)
 
 weapon_info = {
     "Hello World": {

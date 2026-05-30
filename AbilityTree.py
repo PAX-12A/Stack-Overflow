@@ -641,7 +641,7 @@ lang_levels = {
     ],
     6: [
         ("Utility", 200, 150, "你学会了如何用脚本自动化生活。", [], ["Automation"],""),
-        ("Markdown", 100, 175, "你学会了如何用标记语言写文档。", ["Utility"], ["Documentation"],"Text Rain"),
+        ("Markdown", 50, 175, "你学会了如何用标记语言写文档。", ["Utility"], ["Documentation"],"Text Rain"),
         ("Latex", 125, 175, "学术论文的排版神器。", ["Utility"], ["AcademicWriting"],"Formula Barrage"),
         ("HTML", 125, 150, "网页的骨架语言。", ["Utility"], ["WebMarkup"],""),
         ("CSS", 50, 150, "网页的美化大师。", ["HTML"], ["WebStyling"],""),

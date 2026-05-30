@@ -1,4 +1,3 @@
-import pygame
 import random
 from util import *
 from Weapon import *
@@ -92,9 +91,20 @@ DISEASE_CONVERSION_TABLE = {
     "heart": ["Hypertension", "Arrhythmia"],          # 高血压、心律不齐
     "wholebody": ["Diabetes", "Chronic Fatigue"],     # 糖尿病、慢性疲劳
 }
+class Entity:
+    def __init__(self, scene, position):
+        self.scene = scene
+        self.position = position
+        self.alive = True
+
+    def update(self):
+        pass
+
+    def draw(self):
+        pass
 
 class Pawn:
-    def __init__(self, scene , move_ability: MoveAbility ,position=Vec2(1,1), health=100, sequence_limit=2 , ):
+    def __init__(self, scene , move_ability: MoveAbility ,position=Vec2(1,1), health=100, sequence_limit=2):
         self.position = position
         self.render_pos = Vec2(float(position.x),float(position.y))
         self.direction = 1
@@ -227,15 +237,31 @@ class Pawn:
                 return False, f"{weapon.name} Cooling!"
         return False, "无效的武器编号"
     
+    # def execute_sequence(self):
+        # executed_actions = []
+        # for index in self.action_sequence:
+        #     weapon = self.weapons[index]
+        #     if weapon.use():
+        #         executed_actions.append((index, weapon))
+        # self.action_sequence.clear()
+        # self.sequence_length = 0
+        # return executed_actions
     def execute_sequence(self):
-        executed_actions = []
-        for index in self.action_sequence:
-            weapon = self.weapons[index]
-            if weapon.use():
-                executed_actions.append((index, weapon))
+
+        sequence = self.action_sequence[:]
+
+        for i, index in enumerate(sequence):
+            end_char = "->" if i < len(sequence) - 1 else "\n"
+            print(f"{self.weapons[index].name}({index})", end=end_char)
+
+
         self.action_sequence.clear()
         self.sequence_length = 0
-        return executed_actions
+
+        for index in sequence:
+            weapon = self.weapons[index]
+            weapon.use()
+            yield weapon
     
     # def can_move_to(self, new_pos):
     #     return 0 <= new_pos.x <= GRID_WIDTH and 0 <= new_pos.y <= GRID_HEIGHT
@@ -617,7 +643,8 @@ class EAttackState(EnemyState):
                 self.phase = Phase.EXECUTE
             return self
 
-        scene.execute_actions(enemy)
+        # scene.execute_actions(enemy)666
+        scene.actions.append(WeaponSequenceAction(enemy, weapon_generator=enemy.execute_sequence()))
         return AddWeaponState()
     
     def get_intent_symbols(self, enemy):
@@ -663,7 +690,7 @@ class SkillLibrary:
 MONSTER_LIBRARY = {
     "DDL":{
         "name": "DDL Fiend",
-        "health": 5,
+        "health": 3,
         "type": "range",
         "flying": False,
         "weapons": ["DashToDeadline", "Exam"],
@@ -693,7 +720,7 @@ MONSTER_LIBRARY = {
     # },
     "BUG2":{
         "name": "BUG",
-        "health": 8,
+        "health": 5,
         "type": "melee",
         "flying": False,
         "weapons": ["Nullptr"],

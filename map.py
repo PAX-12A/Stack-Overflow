@@ -331,10 +331,6 @@ class Map:
         """飞行生物可生成/移动:非墙tile且无占用"""
         return self.get_terrain(pos) != WALL 
 
-
-    # def is_wall(self, pos):
-    #     return self.get_terrain(pos) == WALL 
-
     def is_wall(self, pos):
     # 安全检查：如果超出地图范围，一律视为墙
         if pos.x < 0 or pos.x >= self.width or pos.y < 0 or pos.y >= self.height:

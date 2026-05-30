@@ -1,5 +1,8 @@
 from grid import Vec2
 from statemachine import *
+from Damage import *
+# from Charactor import Player
+
 class Action:
 
     def __init__(self, actor ,turn_consumed = False):
@@ -13,7 +16,7 @@ class Action:
         pass
 
     def is_finished(self):
-        return True
+        raise NotImplementedError
 
 class WaitAction(Action):
     def __init__(self, actor):
@@ -21,6 +24,8 @@ class WaitAction(Action):
     def start(self, scene):
         print("waiting")
         return
+    def is_finished(self):
+        return True
 
 class MoveAction(Action):
 
@@ -131,25 +136,6 @@ class AttackAction(Action):
 
         print(f"{self.actor} triggers AttackAction,pos:{self.actor.position.x},{self.actor.position.y}")
 
-        # self.actor.state_machine.change(AttackVisualState(self.actor))
-
-        # for pos in self.attack_positions:
-        #     target = scene.get_pawn_at(pos)
-
-        #     if target:
-                
-        #         self.actor.events.push(
-        #             DamageEvent(self.actor, target, self.damage)
-        #         )
-
-        #         self.actor.vfx.add(
-        #             SlashVFX(
-        #                 self.actor.slash_frames,
-        #                 target.render_pos,
-        #                 self.actor.direction
-        #             )
-        #         )
-
         self.state = AttackVisualState(self.actor)
 
         self.actor.state_machine.change(self.state)
@@ -165,8 +151,6 @@ class AttackAction(Action):
                 target = scene.get_pawn_at(pos)
 
                 if target:
-
-                    print(777)
 
                     self.actor.events.push(
                         DamageEvent(
@@ -224,6 +208,113 @@ class ParallelAction(Action):
 
     def is_finished(self):
         return all(action.is_finished() for action in self.parallel_actions)
+    
+class SequenceAction(Action):
+
+    def __init__(self, actor, generator):
+
+        super().__init__(actor)
+
+        self.generator = generator
+        self.current_action = None
+        self.finished = False
+
+    def start(self, scene):
+        self.advance(scene)
+
+    def advance(self, scene):
+
+        try:
+            self.current_action = next(self.generator)
+
+            self.current_action.start(scene)
+
+        except StopIteration:
+            self.finished = True
+
+    def update(self, scene, dt):
+
+        if self.finished:
+            return
+        
+        # print(
+        #     "Sequence current:",
+        #     type(self.current_action).__name__,
+        #     self.current_action.is_finished()
+        # )
+
+        self.current_action.update(scene, dt)
+
+        if self.current_action.is_finished():
+
+            self.advance(scene)
+
+    def is_finished(self):
+
+        return self.finished
+    
+class WeaponSequenceAction(Action):
+
+    def __init__(self, actor, weapon_generator):
+
+        super().__init__(actor)
+
+        self.weapon_generator = weapon_generator
+        self.current_action = None
+        self.finished = False
+    
+    def start(self, scene):
+
+        self.advance(scene)
+
+    def advance(self, scene):
+
+        try:
+
+            weapon = next(self.weapon_generator)
+            
+            base = int(weapon.damage*self.actor.damage_multiplier)
+            damage = Damage(base)
+
+            if self.actor.actor_id == 0 :# 玩家
+
+                if "DDL_fever" in self.actor.enabled_damage_decorators:
+
+                    damage = DDLFeverDecorator(
+                        damage,
+                        self.actor
+                    )
+            # 这里weapon 自己生成 sequence
+            weapon_actions = weapon.build_actions(scene,self.actor,damage.value())
+
+            self.current_action = SequenceAction(
+                self.actor,
+                iter(weapon_actions)
+            )
+
+            self.current_action.start(scene)
+
+        except StopIteration:
+
+            self.finished = True
+
+    def update(self, scene, dt):
+
+        if self.finished:
+            return
+
+        self.current_action.update(scene, dt)
+
+        if self.current_action.is_finished():
+
+            self.advance(scene)
+
+    def is_finished(self):
+
+        # scene.process_reactions()
+
+        return self.finished
+
 
 
 import json   

@@ -2,7 +2,7 @@
 
 from Action import (
     MoveAction,
-    WaitAction
+    WaitAction,WeaponSequenceAction
 )
 
 from grid import Vec2
@@ -77,7 +77,7 @@ class ExecuteSequenceCommand(Command):
 
             return
 
-        scene.execute_actions(player)
+        scene.actions.append(WeaponSequenceAction(player, weapon_generator=player.execute_sequence()))
 
 
 # class SelectWeaponCommand(Command):

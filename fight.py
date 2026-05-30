@@ -2,7 +2,6 @@ import pygame
 import random
 from util import *
 from Charactor import *
-from Damage import *
 from events import *
 from animation import *
 from vfxsystem import VFXSystem
@@ -230,46 +229,43 @@ class FightScene:
         # gameplay
         self.gameplay_input.handle_event(event)
 
-    def print_executed_actions(self,executed_actions):
-        if not executed_actions:
-            print("No actions executed.")
-            return
+    def process_reactions(self):
 
-        for i, (index, weapon) in enumerate(executed_actions):
-            end_char = "->" if i < len(executed_actions) - 1 else "\n"
-            print(f"{weapon.name}({index})", end=end_char)
+        pawn = self.player
+
+        if not self.mymap.is_walkable(pawn.position):
+
+            self.actions.appendleft(
+                GravityAction(pawn)
+            )
 
 
-    def execute_actions(self,actor):
-        executed_actions = actor.execute_sequence()
+    # def execute_actions(self,actor):
+    #     executed_actions = actor.execute_sequence()
 
-        if self.player.battle_style == "stack":# stack风格反转序列
-            executed_actions.reverse()
-        self.print_executed_actions(executed_actions)
+    #     if self.player.battle_style == "stack":# stack风格反转序列
+    #         executed_actions.reverse()
+    #     self.print_executed_actions(executed_actions)
         
-        for weapon_index, weapon in executed_actions:
-            # print("atk triggered")
-            # === 1. 加算 / 基础阶段 ===
-            base = int(weapon.damage * actor.damage_multiplier)
-            damage = Damage(base)
+    #     for weapon_index, weapon in executed_actions:
+    #         # print("atk triggered")
+    #         # === 1. 加算 / 基础阶段 ===
+    #         base = int(weapon.damage * actor.damage_multiplier)
+    #         damage = Damage(base)
 
-            # === 2. Decorator 阶段（按规则包） ===
-            if isinstance(actor, Player):
-                # print(f"Player enabled decorators: {actor.enabled_damage_decorators}")
-                if "DDL_fever" in actor.enabled_damage_decorators:
-                    damage = DDLFeverDecorator(damage, actor)
+    #         # === 2. Decorator 阶段（按规则包） ===
+    #         if isinstance(actor, Player):
+    #             # print(f"Player enabled decorators: {actor.enabled_damage_decorators}")
+    #             if "DDL_fever" in actor.enabled_damage_decorators:
+    #                 damage = DDLFeverDecorator(damage, actor)
 
-            # 以后可以继续包：
-            # damage = CriticalDecorator(damage)
-            # damage = VulnerableDecorator(damage, target)
-            # damage = ShieldDecorator(damage, target)
+    #         # 以后可以继续包：
+    #         # damage = CriticalDecorator(damage)
 
-            # actual_damage = damage.value()
-
-            damage = damage.value()
-            # 让武器自己决定产生哪些 Action
-            actions = weapon.build_actions(self, actor, damage)
-            self.actions.extend(actions)
+    #         damage = damage.value()
+    #         # 让武器自己决定产生哪些 Action
+    #         actions = weapon.build_actions(self, actor, damage)
+    #         self.actions.extend(actions)
 
     def shoot(self, weapon,actual_damage,actor):
         # 获取当前方向最近的敌人
@@ -373,8 +369,6 @@ class FightScene:
     
     def end_player_turn(self):
         self.game_state = "enemy_turn"
-        if not self.mymap.is_walkable(self.player.position):
-            self.actions.append(GravityAction(self.player))
 
         if self.mymap.get_terrain(self.player.position) == 3:
             self.level += 1
@@ -396,20 +390,11 @@ class FightScene:
         self.turn_count += 1
 
         self.player.update_statuses()#更新状态
-        # print(self.player.old_pos)
-
-        # self.player.build_turn_ghost(self.player.old_pos, self.player.position)
-        # self.player.old_pos = self.player.position
-
-        # if(self.actions):
-        #     for act in self.actions:
-        #         print(f"actions:{self.current_action},{act.actor.name},{act.weapon.name}")
-        # print(self.player.position,self.is_standable(self.player.position))
-
-        # 执行敌人回合
-        # pygame.time.set_timer(pygame.USEREVENT + 1, 100)  # 0.1秒后执行敌人回合
 
         self.save_timeline()
+
+        if not self.mymap.is_walkable(self.player.position):
+            self.actions.append(GravityAction(self.player))
 
     def end_enemy_turn(self):
         for enemy in self.enemies:
@@ -557,11 +542,11 @@ class FightScene:
 
     def draw_ui(self,screen):
         # 绘制玩家血量,假设最大血量是 10 格
-        max_bar_length = 10  
+        max_bar_length = 5  
         filled = int(self.player.health / self.player.max_health * max_bar_length)
         bar_str = "#" * filled + "." * (max_bar_length - filled)
-        health_text = self.font.render(f"HP: {bar_str}({self.player.health}/{self.player.max_health})", True, WHITE)
-        screen.blit(health_text, (30, SCREEN_HEIGHT-80))
+        health_text = self.font.render(f"HP{bar_str}({self.player.health}/{self.player.max_health})", True, WHITE)
+        screen.blit(health_text, (SCREEN_WIDTH- 120, 50))
         
         # 绘制回合数
         screen.blit(self.icons[0], (SCREEN_WIDTH- 50, 10))
@@ -646,7 +631,6 @@ class FightScene:
             self.current_action.start(self)
 
         if self.current_action:
-
             self.current_action.update(self, dt)
 
             if self.current_action.is_finished():

@@ -1,6 +1,6 @@
 import pygame
 import sys
-from fight import *
+from fight import FightScene,SkillLibrary
 from util import *
 from pages import *
 
@@ -11,8 +11,7 @@ pygame.mixer.init()  # 初始化音频系统
 # 载入背景音乐
 # try:
 
-#     pygame.mixer.mu
-# ic.load("assets/music/illusion.mp3")  # 音乐文件路径
+#     pygame.mixer.muic.load("assets/music/illusion.mp3")  # 音乐文件路径
 #     pygame.mixer.music.set_volume(0)  # 设置音量（0.0 到 1.0）
 #     pygame.mixer.music.play(-1)  # -1 表示循环播放
 
@@ -40,9 +39,8 @@ class MainMenu:
     def draw(self, screen):
         screen.fill(BLACK)
 
-        menu_font = get_font("Patriot",32)
         opt_font = get_font("Cogmind",20)
-        title_surface = menu_font.render("Stack OverflOw", True, WHITE)
+        title_surface = load_image(f"arts/stackOverflow.png")
         title_rect = title_surface.get_rect(center=(SCREEN_WIDTH//2, 50))
         screen.blit(title_surface, title_rect)
 
@@ -63,55 +61,56 @@ class MainMenu:
             screen.blit(text_surface, text_rect)
             
 
-    def intro(self,screen):
-        screen.fill(BLACK)
-        welcome = load_image(f"arts/terminal of life.png")
-        screen.blit(welcome,((SCREEN_WIDTH-welcome.get_width())//2,100))
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)).convert_alpha()
-        overlay.fill((0, 0, 0, 180))
-        screen.blit(overlay,((SCREEN_WIDTH-welcome.get_width())//2,100))
+    # def intro(self,app):
+    #     surface = app.virtual_surface
+    #     surface.fill(BLACK)
+    #     welcome = load_image(f"arts/terminal of life.png")
+    #     surface.blit(welcome,((SCREEN_WIDTH-welcome.get_width())//2,100))
+    #     overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)).convert_alpha()
+    #     overlay.fill((0, 0, 0, 180))
+    #     surface.blit(overlay,((SCREEN_WIDTH-welcome.get_width())//2,100))
 
-        intro_text = [
-        "Welcome to Stack Overflow",
-        "In the game,Programming language is your sword,",
+    #     intro_text = [
+    #     "Welcome to Stack Overflow",
+    #     "In the game,Programming language is your sword,",
         
-        "and your brain is the shield.",
-        "Here is a simple tutorial:",
-        "A,D for move ,",
-        "S to end your turn.", 
-        "W to turn around,"
-        "X/Space to execute sequence",
-        "Don't make your brain 'Stack Overflow'.",
-        ]
-        self.draw_multiline_dialog(screen,intro_text,self.font)
+    #     "and your brain is the shield.",
+    #     "Here is a simple tutorial:",
+    #     "A,D for move ,",
+    #     "S to end your turn.", 
+    #     "W to turn around,"
+    #     "X/Space to execute sequence",
+    #     "Don't make your brain 'Stack Overflow'.",
+    #     ]
+    #     self.draw_multiline_dialog(surface,intro_text,self.font)
 
-    def draw_text(self,screen,text, x, y, font, color=WHITE):
-        rendered = font.render(text, True, color)
-        screen.blit(rendered, (x, y))
+    # def draw_text(self,surface,text, x, y, font, color=WHITE):
+    #     rendered = font.render(text, True, color)
+    #     surface.blit(rendered, (x, y))
 
-    # 像视觉小说一样显示文字
-    def draw_multiline_dialog(self,screen, text_lines, font ,start_y=40, color=WHITE, line_spacing=20):
+    # # 像视觉小说一样显示文字
+    # def draw_multiline_dialog(self,surface, text_lines, font ,start_y=40, color=WHITE, line_spacing=20):
         
-        self.draw_text(screen,"Press ENTER to continue...", 20, SCREEN_HEIGHT - 30,font,GREEN)
+    #     self.draw_text(surface,"Press ENTER to continue...", 20, SCREEN_HEIGHT - 30,font,GREEN)
 
-        line_index = 0
-        self.draw_text(screen,text_lines[line_index], 40, start_y + line_index * line_spacing, font,color)
-        line_index += 1
+    #     line_index = 0
+    #     self.draw_text(surface,text_lines[line_index], 40, start_y + line_index * line_spacing, font,color)
+    #     line_index += 1
 
-        pygame.display.flip()
+    #     pygame.display.flip()
 
-        waiting = True
-        while waiting:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit(); sys.exit()
-                elif event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
-                    if line_index < len(text_lines):
-                        self.draw_text(screen,text_lines[line_index], 50,start_y + line_index * line_spacing, font,color)
-                        line_index += 1
-                        pygame.display.flip()
-                    else:
-                        waiting = False
+    #     waiting = True
+    #     while waiting:
+    #         for event in pygame.event.get():
+    #             if event.type == pygame.QUIT:
+    #                 pygame.quit(); sys.exit()
+    #             elif event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+    #                 if line_index < len(text_lines):
+    #                     self.draw_text(surface,text_lines[line_index], 50,start_y + line_index * line_spacing, font,color)
+    #                     line_index += 1
+    #                     pygame.display.flip()
+    #                 else:
+    #                     waiting = False
 
 class GameApp:
     def __init__(self):
@@ -119,6 +118,12 @@ class GameApp:
         self.base_size = (SCREEN_WIDTH, SCREEN_HEIGHT)  # 你的设计分辨率
         self.virtual_surface = pygame.Surface(self.base_size)
         self.window_size = self.screen.get_size()
+
+        # --- 新增：初始化缩放参数 ---
+        self.scale = 1
+        self.offset_x = 0
+        self.offset_y = 0
+        self.update_scale()
 
         pygame.display.set_caption("Stack Overflow")
         self.clock = pygame.time.Clock()
@@ -136,6 +141,21 @@ class GameApp:
         self.running = True
         is_fullscreen = False
 
+    # --- 新增：更新缩放参数的方法 ---
+    def update_scale(self):
+        screen_w, screen_h = self.window_size
+        base_w, base_h = self.base_size
+
+        # 计算缩放比例 (//1 保持整数缩放，如果你想支持小数缩放，可以直接用 min)
+        self.scale = max(1, min(screen_w / base_w, screen_h / base_h) // 1)
+        
+        
+        new_w = int(base_w * self.scale)
+        new_h = int(base_h * self.scale)
+
+        self.offset_x = (screen_w - new_w) // 2
+        self.offset_y = (screen_h - new_h) // 2
+
 class GameState:
     def handle_event(self, event): pass
     def update(self): pass
@@ -148,13 +168,84 @@ class MenuState(GameState):
     def handle_event(self, event):
         choice = self.app.menu.handle_event(event)
         if choice == "Start":
-            self.app.menu.intro(self.app.screen)
-            self.app.state = PlayingState(self.app)
+            self.app.state = IntroState(self.app)
         elif choice == "Quit":
             self.app.running = False
 
     def draw_to(self, surface):
         self.app.menu.draw(surface)
+
+class IntroState(GameState):
+    def __init__(self, app):
+        self.app = app
+        # 预载入图片和半透明遮罩
+        self.welcome_img = load_image("arts/terminal of life.png")
+        
+        # 优化遮罩大小，使其与图片一致
+        self.overlay = pygame.Surface(self.welcome_img.get_size()).convert_alpha()
+        self.overlay.fill((0, 0, 0, 180))
+        
+        # 视觉小说文字配置
+        self.intro_text = [
+            "Welcome to Stack Overflow",
+            "In the game, Programming language is your sword,",
+            "and your brain is the shield.",
+            "Here is a simple tutorial:",
+            "A,D for move ,",
+            "S to end your turn.", 
+            "W to turn around,",
+            "X/Space to execute sequence",
+            "Don't make your brain 'Stack Overflow'.",
+        ]
+        
+        self.line_index = 1     # 初始显示第 1 行
+        self.line_spacing = 25  # 行间距
+        self.start_y = 50       # 起始 Y 坐标
+
+    def handle_event(self, event):
+        # 只有按下特定键（如回车/空格）或点击鼠标时才推进剧情
+        if event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_x):
+                self._advance_story()
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            self._advance_story()
+
+    def _advance_story(self):
+        if self.line_index < len(self.intro_text):
+            self.line_index += 1
+        else:
+            # 所有文字播放完毕，切入游戏试玩状态
+            self.app.state = PlayingState(self.app)
+
+    def update(self):
+        # 如果以后想做文字逐字打印的动画（Typewriter Effect），可以在这里更新计时器
+        pass
+
+    def draw_to(self, surface):
+        # 1. 清屏
+        surface.fill(BLACK)
+        
+        # 2. 绘制居中的背景图与遮罩
+        img_w, img_h = self.welcome_img.get_size()
+        img_x = (self.app.base_size[0] - img_w) // 2
+        img_y = 100
+        
+        surface.blit(self.welcome_img, (img_x, img_y))
+        surface.blit(self.overlay, (img_x, img_y))
+        
+        # 3. 绘制底部提示语
+        # 这里统一使用 app 的 font_en（也可以换成 font_ch）
+        prompt_surf = self.app.font_en.render("Press ENTER / CLICK to continue...", True, GREEN)
+        surface.blit(prompt_surf, (20, self.app.base_size[1] - 30))
+        
+        # 4. 逐行绘制当前已经解锁的文本
+        for i in range(self.line_index):
+            # 保留你原本的设计：第一行缩进 40，后续行缩进 50
+            x_pos = 40 if i == 0 else 50
+            y_pos = self.start_y + i * self.line_spacing
+            
+            text_surf = self.app.font_en.render(self.intro_text[i], True, WHITE)
+            surface.blit(text_surf, (x_pos, y_pos))
 
 class PlayingState(GameState):
     def __init__(self, app):
@@ -216,33 +307,37 @@ def main():
             elif event.type == pygame.VIDEORESIZE:
                 app.window_size = (event.w, event.h)
                 app.screen = pygame.display.set_mode(app.window_size, pygame.RESIZABLE)
+                app.update_scale() # 窗口改变时重新计算缩放
+            # --- 新增：鼠标事件坐标系转换核心逻辑 ---
+            elif event.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+                mx, my = event.pos
+                # 将物理窗口坐标逆运算为虚拟画布坐标
+                vx = int((mx - app.offset_x) / app.scale)
+                vy = int((my - app.offset_y) / app.scale)
+                
+                # 创建一个替换了 pos 的新事件往下传
+                event_dict = event.dict.copy()
+                event_dict['pos'] = (vx, vy)
+                mapped_event = pygame.event.Event(event.type, **event_dict)
+                
+                app.state.handle_event(mapped_event)
+            # ----------------------------------------
             else:
                 app.state.handle_event(event)
 
         app.state.update()
-        # app.state.draw()
-        # # print(app.state.__class__.__name__)
 
-        # pygame.display.flip()
         # 1. 所有内容画到虚拟画布
         app.virtual_surface.fill((0,0,0))
         app.state.draw_to(app.virtual_surface)
 
-        # 2. 等比缩放 + 黑边
-        screen_w, screen_h = app.window_size
-        base_w, base_h = app.base_size
-
-        scale = min(screen_w / base_w, screen_h / base_h)//1
-        new_w = int(base_w * scale)
-        new_h = int(base_h * scale)
-
-        offset_x = (screen_w - new_w) // 2
-        offset_y = (screen_h - new_h) // 2
-
+        # 2. 等比缩放 + 黑边 (现在直接使用 app 中计算好的参数)
+        new_w = int(app.base_size[0] * app.scale)
+        new_h = int(app.base_size[1] * app.scale)
         scaled = pygame.transform.scale(app.virtual_surface, (new_w, new_h))
 
         app.screen.fill((0,0,0))
-        app.screen.blit(scaled, (offset_x, offset_y))
+        app.screen.blit(scaled, (app.offset_x, app.offset_y))
 
         pygame.display.flip()
         app.clock.tick(60)

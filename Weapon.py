@@ -45,44 +45,81 @@ class PatternWeapon(Weapon):
     def build_actions(self, scene, actor, damage):
         return [AttackAction(actor, self, self.get_attack_positions(actor),damage)]  
 
+# class DashWeapon(Weapon):
+
+#     def build_actions(self, scene, actor, damage):
+#         closest_enemy = scene.get_closestL_pawn(actor.position, actor.direction)
+
+#         if not closest_enemy:
+#             print(f"{actor.name}:No enemy")
+#             return [MoveAction(actor, Vec2(actor.direction, 0))]
+
+#         target_x = closest_enemy.position.x - actor.direction
+#         offset = Vec2(target_x - actor.position.x, 0)
+
+#         final_attack_positions = [
+#             Vec2(target_x + pattern_offset.x * actor.direction,closest_enemy.position.y)
+#             for pattern_offset in self.pattern
+#         ]
+
+#         return [
+#             MoveAction(actor, offset),
+#             AttackAction(actor, self, final_attack_positions , damage)  # execute() 只做攻击
+#         ]
+
 class DashWeapon(Weapon):
 
     def build_actions(self, scene, actor, damage):
-        closest_enemy = scene.get_closestL_pawn(actor.position, actor.direction)
 
-        if not closest_enemy:
-            print(f"{actor.name}:No enemy")
-            return [MoveAction(actor, Vec2(actor.direction, 0))]
+        def sequence():
 
-        target_x = closest_enemy.position.x - actor.direction
-        offset = Vec2(target_x - actor.position.x, 0)
+            closest_enemy = scene.get_closestL_pawn(actor.position,actor.direction)
 
-        final_attack_positions = [
-            Vec2(target_x + pattern_offset.x * actor.direction,closest_enemy.position.y)
-            for pattern_offset in self.pattern
-        ]
-        
-        return [
-            MoveAction(actor, offset),
-            AttackAction(actor, self, final_attack_positions , damage)  # execute() 只做攻击
-        ]
+            if not closest_enemy:
+                yield MoveAction(actor,Vec2(actor.direction, 0))
+                return
+
+            target_x = (closest_enemy.position.x - actor.direction)
+
+            offset = Vec2(target_x - actor.position.x,0)
+
+            yield MoveAction(actor, offset)
+
+            # Move 执行后：
+            # actor.position 已经是最新的
+
+            attack_positions = self.get_attack_positions(actor)
+
+            yield AttackAction(actor,self,attack_positions,damage)
+
+        return [SequenceAction(actor, sequence())]
 
 class RollWeapon(Weapon):
 
     def build_actions(self, scene, actor, damage):
-        closest_enemy = scene.get_closestL_pawn(actor.position, actor.direction)
 
-        if not closest_enemy:
-            print(f"{actor.name}:No enemy")
-            return [MoveAction(actor, Vec2(actor.direction, 0))]
+        def sequence():
 
-        target_x = closest_enemy.position.x + actor.direction
-        offset = Vec2(target_x - actor.position.x, 0)
+            closest_enemy = scene.get_closestL_pawn(actor.position,actor.direction)
 
-        return [
-            MoveAction(actor, offset),
-            AttackAction(actor, self, self.get_attack_positions(actor),damage),  # execute() 只做攻击
-        ]
+            if not closest_enemy:
+                yield MoveAction(actor,Vec2(actor.direction, 0))
+                return
+
+            target_x = (closest_enemy.position.x + actor.direction)
+
+            offset = Vec2(target_x - actor.position.x ,0)
+
+            yield MoveAction(actor, offset)
+
+            # Move 执行后：
+            # actor.position 已经是最新的
+
+            attack_positions = self.get_attack_positions(actor)
+
+            yield AttackAction(actor,self,attack_positions,damage)
+
+        return [SequenceAction(actor, sequence())]
 
 class MoveWeapon(Weapon):
 
@@ -120,7 +157,7 @@ class ShootWeapon(Weapon):
 
 weapon_info = {
     "Hello World": {
-        "damage": 3,
+        "damage": 1,
         "pattern": [Vec2(1,0)],
         "cooldown": 0,
         "unique_in_sequence": False
@@ -150,7 +187,7 @@ weapon_info = {
         "unique_in_sequence": True
     },
     "Template Greatsword":{
-        "damage": 5,
+        "damage": 3,
         "pattern": [Vec2(-1,0), Vec2(1,0),Vec2(0,-1), Vec2(0,1)],
         "cooldown": 4,
         "unique_in_sequence": True
@@ -162,7 +199,7 @@ weapon_info = {
         "unique_in_sequence": True
     },
     "Snake Roll":{
-        "damage": 2,
+        "damage": 1,
         "pattern": [Vec2(-1,0)],
         "cooldown": 5,
         "unique_in_sequence": True

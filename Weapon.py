@@ -1,6 +1,8 @@
 from util import *
 from grid import Vec2
 from Action import *
+from entity import Arrow
+
 class Weapon:
     def __init__(self, name, data):
         self.name = name
@@ -144,15 +146,15 @@ class MineWeapon(Weapon):
             MineAction(actor,self),
             AttackAction(actor, self, damage),  # execute() 只做攻击
         ]
+    
+
 
 class ShootWeapon(Weapon):
 
-    def build_actions(self, scene, actor, damage):
-        print(6666)
+    def build_actions(self,scene,actor,damage):
 
         return [
-            MineAction(actor,self),
-            AttackAction(actor, self, damage),  # execute() 只做攻击
+            SpawnEntityAction(actor,"Arrow",damage)
         ]
 
 weapon_info = {
@@ -252,6 +254,12 @@ weapon_info = {
         "cooldown": 0,
         "unique_in_sequence": False
     },
+    "Fireball":{
+        "damage": 6,
+        "pattern": [],
+        "cooldown": 0,
+        "unique_in_sequence": False
+    },
     
 
     # "DashToDeadline": DashWeapon("DashToDeadline", 3, [Vec2(1,0)], 0,status_effects=[Status("Dizzy","brain")]),
@@ -271,5 +279,5 @@ weapon_registry = {
     "DragAndDrop":MoveWeapon,
     "DEBUG":MoveWeapon,
     "Data Mining":MineWeapon,
-
+    "Fireball":ShootWeapon,
 }

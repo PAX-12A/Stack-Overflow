@@ -1,14 +1,15 @@
 import pygame
 import random
 from util import *
-from Charactor import *
+from charactor import Player,Enemy,EnemyFactory,MONSTER_LIBRARY
+from entity import Projectile
 from events import *
 from animation import *
 from vfxsystem import VFXSystem
 from grid import *
 from camera import Camera
 from map import *
-from Action import *
+from Action import GravityAction
 from commands import *
 from ui_input import *
 from gameplay_input import *
@@ -65,6 +66,9 @@ class FightScene:
         self.timeline = []
         self.ui_input = UIInputSystem(self)
         self.gameplay_input = GameplayInputSystem(self)
+        self.projectiles = []
+
+        self.input_locked = False
 
         
     def prepare_level(self):
@@ -127,6 +131,12 @@ class FightScene:
             for enemy in self.enemies:
                 if enemy.position.x == pos.x and enemy.position.y == pos.y:
                     return enemy
+                
+                # 检查敌人
+        if pawn_type in ("all","projectile"):
+            for p in self.projectiles:
+                if p.position.x == pos.x and p.position.y == pos.y:
+                    return p
 
         return None
     
@@ -151,7 +161,6 @@ class FightScene:
     #     return self.is_standable(pos) and pos not in self.get_occupied_pos()
 
     def can_spawn(self, pos, flying=False):
-        # print(self.mymap.terrain)
         if flying:
             return self.mymap.is_flyable(pos)
         return self.mymap.is_walkable(pos)
@@ -286,7 +295,7 @@ class FightScene:
             return False
         
     def get_closestL_pawn(self,pos,direction):#看一行的最近敌人,用于dash
-        # print(pos,direction)
+
         i = pos.x + direction
         while 0 < i < GRID_WIDTH - 1:
             if self.mymap.is_wall(Vec2(i,pos.y)): #遇到墙停止
@@ -354,7 +363,6 @@ class FightScene:
             pos = Vec2(x, y)
             if self.can_spawn(pos, flying=flying):
                 return pos
-        print
         return None
 
     def create_random_enemy(self , position, monster_id=None):
@@ -375,9 +383,8 @@ class FightScene:
             self.prepare_level()
             return  
 
-        if  self.level > 2:
+        if  self.level > 0:
             self.game_state = "game_over"
-            self.add_message("胜利!", 300)
             self.win=True
             return        
         
@@ -401,7 +408,7 @@ class FightScene:
             enemy.update_cooldowns()
 
         for enemy in self.enemies:
-            if not enemy.flying:
+            if not enemy.flying and enemy.alive:
                 if not self.mymap.is_walkable(enemy.position) and not self.get_pawn_at(enemy.position+Vec2(0,1),"all"):
                     self.actions.append(GravityAction(enemy))
 
@@ -410,6 +417,9 @@ class FightScene:
                     
         # # 执行敌人回合
         # pygame.time.set_timer(pygame.USEREVENT + 1, 100)  # 0.1秒后执行玩家回合
+
+        for p in self.projectiles:
+            p.update()
 
 
     
@@ -432,15 +442,14 @@ class FightScene:
 
             # 绘制敌人血量
             screen_pos = self.camera.apply(enemy.render_pos)
-            # health_ratio = enemy.health / enemy.max_health
-            # health_width = 20
-            # pygame.draw.rect(screen,SHADOW, (health_x,health_y, health_width, 3))
-            # pygame.draw.rect(screen, WHITE, (health_x,health_y, int(health_width * health_ratio), 3))
-            health_x = screen_pos[0]
-            health_y = screen_pos[1]
             hp_text = self.font.render(str(enemy.health), True, GREEN)
 
-            screen.blit(hp_text,(health_x,health_y))
+            screen.blit(hp_text,(screen_pos[0],screen_pos[1]))
+
+        for projectile in self.projectiles:
+
+            projectile.draw(screen)
+            
 
     def draw_pawns(self, screen , pawn):
         character = pawn.anim.get_frame()
@@ -624,7 +633,9 @@ class FightScene:
 
     def update_actionqueue(self, dt):
 
-        # print("CURRENT", self.current_action)
+        print("CURRENT", self.current_action)
+        if self.current_action is not None:
+            print(self.current_action.actor,self.actions)
 
         if self.current_action is None and self.actions:
             self.current_action = self.actions.popleft()
@@ -694,27 +705,21 @@ class FightScene:
 
 
     def game_over(self,screen):
-        # overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        # overlay.set_alpha(128)
-        # overlay.fill(WHITE)
-        # screen.blit(overlay, (0, 0))
-
+        
         screen.fill(BLACK)
         
         if self.win:
-            end_text = self.large_font.render("Congratulations!", True, GREEN)
+            end_text = self.font.render("Congratulations!", True, GREEN)
         else:
             end_text = self.font.render("You Failed!", True, RED)
             render_ascii_art(screen, label="grave",x=10, y=20, font_size=12, color=WHITE)
             character = load_image('arts/grave.png',(121,294))
             screen.blit(character, (400, 25))
-        
-        end_rect = end_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2+200))
-        screen.blit(end_text, end_rect)
+
+        screen.blit(end_text, (250,100))
         
         restart_text = self.font.render("Q to return Menu,R to restart", True, WHITE)
-        restart_rect = restart_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 220))
-        screen.blit(restart_text, restart_rect)    
+        screen.blit(restart_text, (250,200))    
     
     def restart_game(self):
         self.player = Player(self)
@@ -734,6 +739,7 @@ class FightScene:
             if(event.target == None):
                 return
             event.target.health -= event.amount
+
             print(f"{event.target.name} took {event.amount} damage, health now {event.target.health}")
 
             if event.target.health <= 0:
@@ -750,6 +756,10 @@ class FightScene:
 
             elif isinstance(pawn, Player):
                 self.game_state = "game_over"
+
+            elif isinstance(pawn, Projectile):
+                if pawn in self.projectiles:
+                    self.projectiles.remove(pawn)
 
         elif isinstance(event, MessageEvent):
             self.add_message(event.text, event.color)

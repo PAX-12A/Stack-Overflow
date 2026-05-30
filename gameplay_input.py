@@ -8,8 +8,9 @@ from commands import (
     MoveCommand,
     WaitCommand,
     ExecuteSequenceCommand,
-    RotateCommand
+    RotateCommand,
 )
+from Action import PlayerEndTurnAction
 
 
 class GameplayInputSystem:
@@ -87,6 +88,9 @@ class GameplayInputSystem:
 
     def execute_command(self, command):
 
+        if self.scene.input_locked: #防止玩家快速点击入队多个动作
+            return False
+
         # Build actions from command
         command.build_actions(self.scene)
 
@@ -95,6 +99,6 @@ class GameplayInputSystem:
 
         # End turn if consumed
         if consumed:
-            self.scene.end_player_turn()
+            self.scene.actions.append(PlayerEndTurnAction(self.scene.player))
 
         return consumed

@@ -1,7 +1,8 @@
 from grid import Vec2
 from statemachine import *
 from Damage import *
-# from Charactor import Player
+from entity import projectile_registry
+
 
 class Action:
 
@@ -115,6 +116,10 @@ class GravityAction(Action):
 
     def update(self, scene, dt):
 
+        if not self.actor.alive:#临时，保证不卡死
+            self.finished = True
+            return
+
         if self.state.finished:
             self.finished = True
 
@@ -163,7 +168,7 @@ class AttackAction(Action):
                     self.actor.vfx.add(
                         SlashVFX(
                             self.actor.slash_frames,
-                            target.render_pos,
+                            target.position,
                             self.actor.direction
                         )
                     )
@@ -349,4 +354,52 @@ class TimelineStep:
 
             "duration": self.duration
         }
+    
+class SpawnEntityAction(Action):
+
+    def __init__(self, actor, name , damage ):
+        super().__init__(actor)
+
+        self.projectile_type = name
+        self.damage = damage
+
+    def start(self,scene):
+        # projectile = projectile_registry[self.projectile_type]
+
+        # self.actor.scene.projectiles.append(
+        #     projectile
+        # )
+
+        projectile_cls = projectile_registry[
+            self.projectile_type
+        ]
+
+        projectile = projectile_cls(
+            scene=self.actor.scene,
+            position=self.actor.position,
+            direction=self.actor.direction,
+            damage = 10 
+        )
+
+        self.actor.scene.projectiles.append(
+            projectile
+        )
+
+        self.finished = True
+    
+    def is_finished(self):
+        return True
+
+class PlayerEndTurnAction(Action):
+
+    def start(self, scene):
+
+        scene.end_player_turn()
+
+        scene.input_locked = False
+
+        self.finished = True
+    
+    def is_finished(self):
+        return self.finished
 

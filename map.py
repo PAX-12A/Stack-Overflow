@@ -247,7 +247,8 @@ class Map:
 
         # if best:
         #     self.terrain[best[1]][best[0]] = EXIT
-        self.terrain[63][1]= EXIT
+        self.terrain[62][1]= EXIT
+        self.terrain[62][14]= EXIT
 
     # =========================
     # 陷阱生成

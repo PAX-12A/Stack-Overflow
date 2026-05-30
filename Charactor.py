@@ -1,11 +1,13 @@
 import random
 from util import *
-from Weapon import *
+from Weapon import Weapon,weapon_registry,weapon_info
 from events import DeathEvent
 from statemachine import *
 from animation import *
 from grid import *
 from move_ability import * 
+from Action import WeaponSequenceAction
+from entity import Entity
 
 class Status:
     def __init__(self, name, body_part, duration= 5,is_temp=True, is_illness=False, stack=1, unique=True):
@@ -91,20 +93,11 @@ DISEASE_CONVERSION_TABLE = {
     "heart": ["Hypertension", "Arrhythmia"],          # 高血压、心律不齐
     "wholebody": ["Diabetes", "Chronic Fatigue"],     # 糖尿病、慢性疲劳
 }
-class Entity:
-    def __init__(self, scene, position):
-        self.scene = scene
-        self.position = position
-        self.alive = True
 
-    def update(self):
-        pass
 
-    def draw(self):
-        pass
-
-class Pawn:
+class Pawn(Entity):
     def __init__(self, scene , move_ability: MoveAbility ,position=Vec2(1,1), health=100, sequence_limit=2):
+        super().__init__(scene,position)
         self.position = position
         self.render_pos = Vec2(float(position.x),float(position.y))
         self.direction = 1
@@ -209,15 +202,6 @@ class Pawn:
         self.health = 0  # 确保血量为 0
         self.alive = False
 
-    def remove_from_scene(self, scene):
-        """从场景中移除角色"""
-        if isinstance(self, Player):
-            print(f"Removing player from the scene...")
-        elif isinstance(self, Enemy):
-            scene.enemies.remove(self)  # 移除敌人
-        else:
-            print(f"Unknown pawn type: {self.name}")
-    
     def update_cooldowns(self):
         for weapon in self.weapons:
             weapon.update_cooldown()
@@ -237,15 +221,6 @@ class Pawn:
                 return False, f"{weapon.name} Cooling!"
         return False, "无效的武器编号"
     
-    # def execute_sequence(self):
-        # executed_actions = []
-        # for index in self.action_sequence:
-        #     weapon = self.weapons[index]
-        #     if weapon.use():
-        #         executed_actions.append((index, weapon))
-        # self.action_sequence.clear()
-        # self.sequence_length = 0
-        # return executed_actions
     def execute_sequence(self):
 
         sequence = self.action_sequence[:]
@@ -537,7 +512,7 @@ class Enemy(Pawn):
         #                 else :
         #                     return distance <= 1
         distance = scene.mdis(player.position,self.position)
-        if(distance<=2):
+        if distance<=2 :
             return True
         return False
 
@@ -598,7 +573,7 @@ class EMoveState(EnemyState):
             self.phase = Phase.EXECUTE
             return self
 
-        if not self.strategy.needs_move(enemy, scene) and enemy.can_hit_player(scene.player, scene): 
+        if not self.strategy.needs_move(enemy, scene) and (enemy.can_hit_player(scene.player, scene) or enemy.type == "keep"): 
             return EAttackState()
         
         self.strategy.update(enemy, scene)
@@ -639,7 +614,7 @@ class EAttackState(EnemyState):
     def update(self, enemy, scene):
         if self.phase == Phase.INTENT:
             # scene.add_message(f"{enemy.name} is about to attack")
-            if(scene.can_see_line(enemy,scene.player)):#看的见玩家再真的攻击
+            if scene.can_see_line(enemy,scene.player) or enemy.type == "keep" :#看的见玩家再真的攻击
                 self.phase = Phase.EXECUTE
             return self
 
@@ -699,15 +674,16 @@ MONSTER_LIBRARY = {
             ["DashToDeadline", "Exam"]
         ]
     },
-    # "GPA" : {
-    #     "name": "GPA Phantom",
-    #     "health": 4,
-    #     "type": "range",
-    #     "weapons": ["GPA--"],
-    #     "intents": [
-    #         ["GPA--"],
-    #     ]
-    # },
+    "GPA" : {
+        "name": "GPA",
+        "health": 2,
+        "type": "keep",
+        "flying": True,
+        "weapons": ["Fireball"],
+        "intents": [
+            ["Fireball"],
+        ]
+    },
     # "BUG":{
     #     "name": "BUG",
     #     "health": 5,

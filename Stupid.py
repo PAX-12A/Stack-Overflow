@@ -1,6 +1,7 @@
 import pygame
 import sys
-from fight import FightScene,SkillLibrary
+from fight import FightScene
+from charactor import SkillLibrary
 from util import *
 from pages import *
 
@@ -40,9 +41,7 @@ class MainMenu:
         screen.fill(BLACK)
 
         opt_font = get_font("Cogmind",20)
-        title_surface = load_image(f"arts/stackOverflow.png")
-        title_rect = title_surface.get_rect(center=(SCREEN_WIDTH//2, 50))
-        screen.blit(title_surface, title_rect)
+
 
         for i, option in enumerate(self.options):
             color=WHITE
@@ -59,6 +58,10 @@ class MainMenu:
             text_surface = opt_font.render(option, True, color)
             text_rect = text_surface.get_rect(center=(SCREEN_WIDTH//2, 140 + i*50))
             screen.blit(text_surface, text_rect)
+
+            title_surface = load_image(f"arts/stackOverflow.png")
+            title_rect = title_surface.get_rect(center=(SCREEN_WIDTH//2, 50))
+            screen.blit(title_surface, title_rect)
             
 
     # def intro(self,app):
@@ -192,7 +195,8 @@ class IntroState(GameState):
             "and your brain is the shield.",
             "Here is a simple tutorial:",
             "A,D for move ,",
-            "S to end your turn.", 
+            "S to "
+            " your turn.", 
             "W to turn around,",
             "X/Space to execute sequence",
             "Don't make your brain 'Stack Overflow'.",
@@ -285,6 +289,7 @@ class GameOverState(GameState):
         self.app = app
 
     def handle_event(self, event):
+        
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q:
                 self.app.scene = FightScene()

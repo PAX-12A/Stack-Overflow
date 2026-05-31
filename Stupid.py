@@ -63,58 +63,6 @@ class MainMenu:
             title_rect = title_surface.get_rect(center=(SCREEN_WIDTH//2, 50))
             screen.blit(title_surface, title_rect)
             
-
-    # def intro(self,app):
-    #     surface = app.virtual_surface
-    #     surface.fill(BLACK)
-    #     welcome = load_image(f"arts/terminal of life.png")
-    #     surface.blit(welcome,((SCREEN_WIDTH-welcome.get_width())//2,100))
-    #     overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)).convert_alpha()
-    #     overlay.fill((0, 0, 0, 180))
-    #     surface.blit(overlay,((SCREEN_WIDTH-welcome.get_width())//2,100))
-
-    #     intro_text = [
-    #     "Welcome to Stack Overflow",
-    #     "In the game,Programming language is your sword,",
-        
-    #     "and your brain is the shield.",
-    #     "Here is a simple tutorial:",
-    #     "A,D for move ,",
-    #     "S to end your turn.", 
-    #     "W to turn around,"
-    #     "X/Space to execute sequence",
-    #     "Don't make your brain 'Stack Overflow'.",
-    #     ]
-    #     self.draw_multiline_dialog(surface,intro_text,self.font)
-
-    # def draw_text(self,surface,text, x, y, font, color=WHITE):
-    #     rendered = font.render(text, True, color)
-    #     surface.blit(rendered, (x, y))
-
-    # # 像视觉小说一样显示文字
-    # def draw_multiline_dialog(self,surface, text_lines, font ,start_y=40, color=WHITE, line_spacing=20):
-        
-    #     self.draw_text(surface,"Press ENTER to continue...", 20, SCREEN_HEIGHT - 30,font,GREEN)
-
-    #     line_index = 0
-    #     self.draw_text(surface,text_lines[line_index], 40, start_y + line_index * line_spacing, font,color)
-    #     line_index += 1
-
-    #     pygame.display.flip()
-
-    #     waiting = True
-    #     while waiting:
-    #         for event in pygame.event.get():
-    #             if event.type == pygame.QUIT:
-    #                 pygame.quit(); sys.exit()
-    #             elif event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
-    #                 if line_index < len(text_lines):
-    #                     self.draw_text(surface,text_lines[line_index], 50,start_y + line_index * line_spacing, font,color)
-    #                     line_index += 1
-    #                     pygame.display.flip()
-    #                 else:
-    #                     waiting = False
-
 class GameApp:
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT),pygame.RESIZABLE)
@@ -313,12 +261,14 @@ def main():
                 app.window_size = (event.w, event.h)
                 app.screen = pygame.display.set_mode(app.window_size, pygame.RESIZABLE)
                 app.update_scale() # 窗口改变时重新计算缩放
+
             # --- 新增：鼠标事件坐标系转换核心逻辑 ---
             elif event.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
                 mx, my = event.pos
                 # 将物理窗口坐标逆运算为虚拟画布坐标
                 vx = int((mx - app.offset_x) / app.scale)
                 vy = int((my - app.offset_y) / app.scale)
+
                 
                 # 创建一个替换了 pos 的新事件往下传
                 event_dict = event.dict.copy()
@@ -326,6 +276,7 @@ def main():
                 mapped_event = pygame.event.Event(event.type, **event_dict)
                 
                 app.state.handle_event(mapped_event)
+                app.scene.mouse_pos = (vx, vy) #给scene映射后的位置
             # ----------------------------------------
             else:
                 app.state.handle_event(event)

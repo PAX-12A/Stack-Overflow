@@ -8,10 +8,10 @@ class AbilityPage(PageContainer):
     def __init__(self, get_player_data):
         super().__init__("Ability", get_player_data, tab_pos=(SCREEN_WIDTH - 80, 25), direction="col")
         # 注册四个子页面
-        self.register_page(TechPage(get_player_data),70,24)
-        self.register_page(LangPage(get_player_data),70,24)
-        self.register_page(AlgoPage(get_player_data),70,24)
-        self.register_page(SkillPage(get_player_data),70,24)
+        self.register_page(TechPage(get_player_data),80,24)
+        self.register_page(LangPage(get_player_data),80,24)
+        self.register_page(AlgoPage(get_player_data),80,24)
+        self.register_page(SkillPage(get_player_data),80,24)
 
 class TechPage(Page):
     def __init__(self, get_player_data):
@@ -95,7 +95,7 @@ class SkillPage(Page):
 
     def draw(self, screen, font, player):
         screen.fill(BLACK)
-        font = get_font("Cogmind", 16)
+        font = get_font("Cogmind", 20)
         title = font.render("Skills", True, WHITE)
         screen.blit(title, (50, 40))
 
@@ -119,7 +119,7 @@ class SkillPage(Page):
 
 # 科技节点类
 class BaseNode:
-    def __init__(self, name, x, y, description="", prerequisites=None, width=75, height=15, research_type="tech"):
+    def __init__(self, name, x, y, description="", prerequisites=None, width=80, height=18, research_type="tech"):
         self.name = name
         self.description = description
         self.x = x
@@ -245,7 +245,7 @@ class TechNode(BaseNode):
 
 class LanguageNode(BaseNode):
     def __init__(self, name, x, y, description="", prerequisites=None, unlock_skills =None,weapon=None):
-        super().__init__(name, x, y, description, prerequisites,research_type="lang")
+        super().__init__(name, x, y, description, prerequisites,research_type="lang",width = 65)
         self.unlock_skills = unlock_skills or []  # 学习语言后可见的新技能
         self.weapon = weapon  # 新增：研究完成后解锁的武器
 
@@ -286,8 +286,9 @@ class TechTree:
 
         self.tabs = Toolbar.create_tabs(self,
             names=[ "Tech","Lang","Algo","Skill"],
-            start_pos=(SCREEN_WIDTH -250 , 50),
-            direction="col"
+            start_pos=(SCREEN_WIDTH -200 , 50),
+            direction="col",
+            width = 100, height = 24
         )
         
     def setup_Ability_tree(self, tree_type, ability_levels,initial_unlock=None):
@@ -349,7 +350,7 @@ class TechTree:
             # 选择线条颜色和样式
             if start_node.is_researched and end_node.is_unlocked:
                 line_color = WHITE
-                line_width = 3
+                line_width = 2
             elif start_node.is_researched:
                 line_color = GRAY  
                 line_width = 2

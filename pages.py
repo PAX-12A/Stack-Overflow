@@ -135,7 +135,7 @@ class CharacterPage(Page):
     def draw(self, screen, font, player=None):
         screen.fill(BLACK)
         character = load_image('arts/programmer.png')
-        screen.blit(character, (50, 20))
+        screen.blit(character, (50, 30))
         title_font = get_font("Cogmind",10)
         content_font = get_font("DOS",16)
         text_surface = title_font.render("The harmful effect of programming", True, WHITE)
@@ -209,7 +209,7 @@ class Toolbar(PageContainer):
         self.register_page(CharacterPage(get_player_data),text = False)
         self.register_page(SettingsPage(),text = False)
 
-    def create_tabs(self ,names, start_pos, direction="row", spacing=5):
+    def create_tabs(self ,names, start_pos, direction="row" , spacing=5, width = TAB_WIDTH ,height = TAB_HEIGHT):
         tabs = []
         x, y = start_pos
         
@@ -223,7 +223,7 @@ class Toolbar(PageContainer):
             else:
                 raise ValueError("direction not valid")
             
-            tab = Tab(name, tab_x, tab_y)
+            tab = Tab(name, tab_x, tab_y ,width,height)
             tabs.append(tab)
         
         return tabs

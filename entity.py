@@ -17,7 +17,7 @@ class Entity:
 
 class Projectile(Entity):
 
-    def __init__(self,scene,projectile_type,position,direction,movement,collision,lifetime,health = 1):
+    def __init__(self,scene,projectile_type,position,direction,movement,collision,lifetime, health = 1,speed = 1):
         super().__init__(scene, position)
 
         self.direction = direction
@@ -26,17 +26,16 @@ class Projectile(Entity):
         self.collision = collision
         self.lifetime = lifetime
         self.projectile_type = projectile_type
-        self.health = 1 
-        self.name = "P"
-        self.sprite = load_image(
-            "arts/sprite/Projectile/Arrow.png",
-            (32,32))
+        self.health = health 
+        self.name = projectile_type
+        self.speed = speed
+        self.sprite = scene.spritemanager.get(self.projectile_type)
 
     def update(self):
 
-        self.movement.update(self)
-
         self.collision.update(self)
+
+        self.movement.update(self,self.speed)
 
         self.lifetime.update(self)
 
@@ -59,12 +58,9 @@ class Projectile(Entity):
 
 class StraightMovement:
 
-    def update(self, projectile):
+    def update(self, projectile, speed = 1):
 
-        projectile.position += Vec2(
-            projectile.direction,
-            0
-        )
+        projectile.position += projectile.direction*speed
 
 class DamageCollision:
 
@@ -78,14 +74,14 @@ class DamageCollision:
             if e.position == projectile.position:
 
                 projectile.scene.events.push(DamageEvent(projectile,e,self.damage))
-                projectile.scene.events.push(DamageEvent(projectile,projectile,self.damage))#自毁
+                projectile.scene.events.push(DamageEvent(None,projectile,self.damage))#自毁
 
                 projectile.alive = False
 
                 return
         if projectile.scene.player.position == projectile.position:
             projectile.scene.events.push(DamageEvent(projectile,projectile.scene.player,self.damage))
-            projectile.scene.events.push(DamageEvent(projectile,projectile,self.damage))
+            projectile.scene.events.push(DamageEvent(None,projectile,self.damage))
             projectile.alive = False
 
             
@@ -100,52 +96,70 @@ class Lifetime:
         self.turns -= 1
 
         if self.turns <= 0:
-            projectile.alive = False
+            projectile.scene.events.push(DamageEvent(None,projectile,projectile.health))#自毁
 
 class Arrow(Projectile):
 
-    def __init__(self,scene,position,direction,damage):
+    def __init__(self,scene,projectile_type,position,direction,damage,lifetime=5,speed=1):
 
-        super().__init__(
-            scene,
-            "Arrow",
-            position,
-            direction,
+        super().__init__(scene,projectile_type,position,direction,speed=speed,
+                         
             movement=StraightMovement(),
 
-            collision=DamageCollision(
-                damage
-            ),
+            collision=DamageCollision(damage),
 
-            lifetime=Lifetime(5)
+            lifetime=Lifetime(lifetime)
         )
-
-
-class ProjectileFactory:
-
-    def create(
-        self,
-        projectile_type,
-        actor,
-        damage
-    ):
-
-        if projectile_type == "Arrow":
-
-            return Arrow(
-                actor.scene,
-                actor.position,
-                actor.direction,
-                damage
-            )
-
 
 projectile_registry = {
     "Arrow": Arrow,
-    # "Fireball": Fireball
+    "Mana": Arrow,
+    "Bullet": Arrow,
 }
 
-# PROJECTILE_SPRITES = {
-#     "Arrow": load_image("arts/sprite/Projectile/Arrow.png", (32, 32)),
-#     # "Fireball": load_image(...),
-# }
+projectile_info = {
+
+    "Arrow": {
+
+        "movement": "straight",
+
+        "collision": "damage",
+
+        "sprite": "Arrow",
+
+        "health": 1
+    },
+
+    "Mana": {
+
+        "movement": "straight",
+
+        "collision": "damage",
+
+        "sprite": "Mana",
+
+        "health": 1
+    },
+
+    "Bullet": {
+
+        "movement": "straight",
+
+        "collision": "damage",
+
+        "sprite": "Bullet",
+
+        "health": 1
+    },
+
+    "Missile": {
+
+        "movement": "homing",
+
+        "collision": "explosion",
+
+        "sprite": "Missile",
+
+        "health": 1
+    }
+}

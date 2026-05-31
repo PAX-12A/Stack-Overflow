@@ -72,6 +72,9 @@ class GameplayInputSystem:
 
         if event.type != pygame.KEYDOWN:
             return False
+        
+        if self.scene.input_locked: #防止玩家快速点击入队多个动作
+            return False
 
         builder = self.keymap.get(event.key)
 
@@ -88,8 +91,6 @@ class GameplayInputSystem:
 
     def execute_command(self, command):
 
-        if self.scene.input_locked: #防止玩家快速点击入队多个动作
-            return False
 
         # Build actions from command
         command.build_actions(self.scene)
@@ -99,6 +100,7 @@ class GameplayInputSystem:
 
         # End turn if consumed
         if consumed:
+            self.scene.input_locked = True
             self.scene.actions.append(PlayerEndTurnAction(self.scene.player))
 
         return consumed

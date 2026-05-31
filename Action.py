@@ -196,23 +196,29 @@ class MineAction(Action):
 
     
 class ParallelAction(Action):
-    """包裹一组 Action，让它们同时执行，全部完成后才结束"""
 
-    def __init__(self, actions: list[Action]):
-        super().__init__(None)  # 没有单一 actor
-        self.parallel_actions = actions
+    def __init__(self, actor, actions):
+
+        super().__init__(actor)
+
+        self.actions = actions
 
     def start(self, scene):
-        for action in self.parallel_actions:
+
+        for action in self.actions:
             action.start(scene)
 
     def update(self, scene, dt):
-        for action in self.parallel_actions:
-            if not action.is_finished():
-                action.update(scene, dt)
+
+        for action in self.actions:
+            action.update(scene, dt)
 
     def is_finished(self):
-        return all(action.is_finished() for action in self.parallel_actions)
+
+        return all(
+            action.is_finished()
+            for action in self.actions
+        )
     
 class SequenceAction(Action):
 
@@ -290,7 +296,7 @@ class WeaponSequenceAction(Action):
                         self.actor
                     )
             # 这里weapon 自己生成 sequence
-            weapon_actions = weapon.build_actions(scene,self.actor,damage.value())
+            weapon_actions = weapon.build_actions(scene,self.actor)
 
             self.current_action = SequenceAction(
                 self.actor,
@@ -357,33 +363,30 @@ class TimelineStep:
     
 class SpawnEntityAction(Action):
 
-    def __init__(self, actor, name , damage ):
+    def __init__(self, actor, projectile_type , damage ,direction:Vec2 ,lifetime = 5 , offset = None , speed = 1):
         super().__init__(actor)
 
-        self.projectile_type = name
+        self.projectile_type = projectile_type
         self.damage = damage
+        self.direction = direction
+        self.lifetime = lifetime
+        self.offset = offset if offset is not None else actor.position
+        self.speed = speed
 
     def start(self,scene):
-        # projectile = projectile_registry[self.projectile_type]
-
-        # self.actor.scene.projectiles.append(
-        #     projectile
-        # )
-
-        projectile_cls = projectile_registry[
-            self.projectile_type
-        ]
+        projectile_cls = projectile_registry[self.projectile_type]
 
         projectile = projectile_cls(
-            scene=self.actor.scene,
-            position=self.actor.position,
-            direction=self.actor.direction,
-            damage = 10 
+            scene = scene,
+            projectile_type = self.projectile_type,
+            position = self.actor.position + self.offset,
+            direction= self.direction,
+            lifetime = self.lifetime,
+            damage = self.damage,
+            speed = self.speed
         )
 
-        self.actor.scene.projectiles.append(
-            projectile
-        )
+        scene.projectiles.append(projectile)
 
         self.finished = True
     

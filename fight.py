@@ -69,6 +69,9 @@ class FightScene:
         self.projectiles = []
 
         self.input_locked = False
+        self.spritemanager = SpriteManager()
+
+        self.mouse_pos = (0, 0)
 
         
     def prepare_level(self):
@@ -383,7 +386,7 @@ class FightScene:
             self.prepare_level()
             return  
 
-        if  self.level > 0:
+        if  self.level > 2:
             self.game_state = "game_over"
             self.win=True
             return        
@@ -400,7 +403,7 @@ class FightScene:
 
         self.save_timeline()
 
-        if not self.mymap.is_walkable(self.player.position):
+        if not self.mymap.is_walkable(self.player.position) and not self.get_pawn_at(self.player.position+Vec2(0,1),"enemy"):
             self.actions.append(GravityAction(self.player))
 
     def end_enemy_turn(self):
@@ -449,6 +452,14 @@ class FightScene:
         for projectile in self.projectiles:
 
             projectile.draw(screen)
+            screen_pos=self.camera.apply(projectile.position)
+            start = (screen_pos[0]+16,screen_pos[1]+16)
+            end = (start[0] + projectile.direction.x * 20,start[1] + projectile.direction.y * 20)
+            # end = start + Vec2(10,10)
+            pygame.draw.line(screen, GRAY, start, end, 2)
+            pygame.draw.circle(screen, GRAY, end, 3)
+            
+
             
 
     def draw_pawns(self, screen , pawn):
@@ -487,7 +498,6 @@ class FightScene:
         intent_x = pos[0] + 10
         intent_y = pos[1] - 20
 
-        mouse_pos = pygame.mouse.get_pos()
         hovered_weapon = None  # 当前悬停的武器
         weapon_color = pawn.state.get_weapon_color(pawn)
 
@@ -501,7 +511,7 @@ class FightScene:
             screen.blit(self.font.render(f"{weapon.damage}", True, WHITE), (intent_x - 10 , intent_y))#左下角为伤害
 
             # 如果鼠标悬停在这个图标上
-            if rect.collidepoint(mouse_pos):
+            if rect.collidepoint(self.mouse_pos):
                 hovered_weapon = weapon
 
             intent_y -= 16  # 间距调整
@@ -520,15 +530,12 @@ class FightScene:
         # 悬停时绘制武器详细信息 Tooltip
         # ==============================
         if hovered_weapon:
-            self.draw_weapon_tooltip(screen, hovered_weapon, mouse_pos)
+            self.draw_weapon_tooltip(screen, hovered_weapon, self.mouse_pos)
 
     def draw_weapon_tooltip(self, screen, weapon, pos):
         
         """在鼠标位置显示武器信息"""
-        lines = [
-            f"{weapon.name}",
-            f"Damage: {weapon.damage}",
-        ]
+        lines = [f"{weapon.name}",f"Damage: {weapon.damage}"]
 
         padding = 5
         width = 200
@@ -633,9 +640,9 @@ class FightScene:
 
     def update_actionqueue(self, dt):
 
-        print("CURRENT", self.current_action)
-        if self.current_action is not None:
-            print(self.current_action.actor,self.actions)
+        # print("CURRENT", self.current_action)
+        # if self.current_action is not None:
+        #     print(self.current_action.actor,self.actions)
 
         if self.current_action is None and self.actions:
             self.current_action = self.actions.popleft()

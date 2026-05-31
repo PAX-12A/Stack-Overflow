@@ -121,3 +121,19 @@ def get_font(name: str = None, size: int = None):
         _font_cache[key] = pygame.font.Font(font_path, size)
 
     return _font_cache[key]
+
+class SpriteManager:
+
+    cache = {}
+
+    @classmethod
+    def get(cls, name ,size = (32,32)):
+
+        if name not in cls.cache:
+
+            cls.cache[name] = load_image(
+                f"arts/sprite/Projectile/{name}.png",
+                size
+            )
+
+        return cls.cache[name]

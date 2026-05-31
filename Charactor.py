@@ -1,6 +1,6 @@
 import random
 from util import *
-from Weapon import Weapon,weapon_registry,weapon_info
+from Weapon import Weapon,weapon_info
 from events import DeathEvent
 from statemachine import *
 from animation import *
@@ -298,6 +298,7 @@ class Player(Pawn):
         self.unlock_weapon("Hello World")  # 初始武器
         self.unlock_weapon("Goto Jump")  # 初始武器
         self.unlock_weapon("DEBUG")  # 初始武器
+        self.unlock_weapon("Shotgun") 
         self.enabled_damage_decorators: set[str] = set() # 启用的伤害装饰器名称集合
         self.idle_frames = [
             load_image(f"arts/sprite/Character/hero-idle{i}.png", (32, 32))
@@ -328,11 +329,12 @@ class Player(Pawn):
             print(f"武器名 {weapon_name} 不存在")
             return
 
-        weapon_class = weapon_registry.get(weapon_name, Weapon)
+        # weapon_class = weapon_registry.get(weapon_name, Weapon)
 
         data = weapon_info[weapon_name]
 
-        new_weapon = weapon_class(weapon_name, data)
+        # new_weapon = weapon_class(weapon_name, data)
+        new_weapon = Weapon(weapon_name, data)
 
         self.weapons.append(new_weapon)
 
@@ -379,9 +381,11 @@ class MonsterBlueprint:
 
         for wid in self.weapon_ids:
 
-            weapon_class = weapon_registry[wid]
+            # weapon_class = weapon_registry[wid]
 
-            weapon = weapon_class(wid,weapon_info[wid])   # 创建实例
+            # weapon = weapon_class(wid,weapon_info[wid])   # 创建实例
+
+            weapon = Weapon(wid,weapon_info[wid])
 
             weapons.append(weapon)
 
@@ -708,11 +712,11 @@ MONSTER_LIBRARY = {
     "Bat":{
         "name": "BAT",
         "health": 2,
-        "type": "melee",
+        "type": "keep",
         "flying": True,
-        "weapons": ["Nullptr"],
+        "weapons": ["MultiShoot"],
         "intents": [
-            ["Nullptr"]
+            ["MultiShoot"]
         ]
     },
 }
